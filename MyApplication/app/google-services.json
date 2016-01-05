@@ -1,0 +1,91 @@
+{
+  "project_info": {
+    "project_id": "astory-1165",
+    "project_number": "118911688369",
+    "name": "aStory"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:118911688369:android:631d61ebcd5a6601",
+        "client_id": "android:edu.mit.astory",
+        "client_type": 1,
+        "android_client_info": {
+          "package_name": "edu.mit.astory"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "118911688369-kvcuhnjja2ed0a8819b0pblgpfg0hubc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "edu.mit.astory",
+            "certificate_hash": "1F727A47D679892E974656A7552938F871ED8233"
+          }
+        }
+      ],
+      "api_key": [],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "cloud_messaging_service": {
+          "status": 1,
+          "apns_config": []
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "google_signin_service": {
+          "status": 2
+        },
+        "ads_service": {
+          "status": 1
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:118911688369:android:0f765f894df6080d",
+        "client_id": "android:jordan.astory",
+        "client_type": 1,
+        "android_client_info": {
+          "package_name": "jordan.astory"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "118911688369-1oepit1f9gorv2oagfg1c3lah69a2buh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "jordan.astory",
+            "certificate_hash": "1F727A47D679892E974656A7552938F871ED8233"
+          }
+        }
+      ],
+      "api_key": [],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "cloud_messaging_service": {
+          "status": 1,
+          "apns_config": []
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "google_signin_service": {
+          "status": 2
+        },
+        "ads_service": {
+          "status": 1
+        }
+      }
+    }
+  ],
+  "client_info": [],
+  "ARTIFACT_VERSION": "1"
+}

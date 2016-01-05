@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minWidth="280dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:text="@string/add_geofence_title"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:paddingBottom="50dp"/>
+
+    <EditText
+        android:id="@+id/fragment_add_geofence_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/add_geofence_name_hint"/>
+
+    <!--<EditText-->
+        <!--android:layout_width="match_parent"-->
+        <!--android:layout_height="wrap_content"-->
+        <!--android:inputType="number"-->
+        <!--android:ems="10"-->
+        <!--android:id="@+id/fragment_add_geofence_radius"-->
+        <!--android:hint="@string/add_geofence_radius_hint"/>-->
+
+    <EditText
+        android:id="@+id/fragment_add_geofence_content"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:inputType="textMultiLine"
+        android:hint="@string/add_geofence_story_hint"/>
+
+
+</LinearLayout>
