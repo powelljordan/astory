@@ -38,5 +38,7 @@
     <string name="Add">Add</string>
     <string name="Cancel">Cancel</string>
 
+
+    <string name="google_client_id">118911688369-1oepit1f9gorv2oagfg1c3lah69a2buh.apps.googleusercontent.com</string>
     <!--Display Story Activity Strings-->
 </resources>

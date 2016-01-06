@@ -43,7 +43,14 @@
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="@string/google_maps_key" />
+        <meta-data
+            android:name="com.firebase.ui.GoogleClientId"
+            android:value="@string/google_client_id" />
         <activity android:name=".ViewStoryActivity"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation">
+        </activity>
+        <activity android:name=".LoginActivity"
             android:screenOrientation="portrait"
             android:configChanges="orientation">
         </activity>

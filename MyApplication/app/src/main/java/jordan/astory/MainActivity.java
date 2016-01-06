@@ -151,6 +151,7 @@ public class MainActivity extends FragmentActivity implements
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
         fragmentManager = getSupportFragmentManager();
+        goToLoginScreen();
     }
 
     private void updateValuesFromBundle(Bundle savedInstanceState) {
@@ -223,30 +224,33 @@ public class MainActivity extends FragmentActivity implements
             Log.d(TAG, "mGeofenceList size is less than 100");
             Log.d(TAG, "key " + key);
             Firebase specificStoryDB = storiesDB.child(key);
-            ValueEventListener storyValueListener = new ValueEventListener() {
+
+            specificStoryDB.addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override
                 public void onDataChange(DataSnapshot dataSnapshot) {
                     Log.d(TAG, "onDataChange");
                     Log.d(TAG, "DataSnapshot: " + dataSnapshot);
                     DBStory dbStory = dataSnapshot.getValue(DBStory.class);
                     Log.d(TAG, "dbStory " + dbStory);
-                    Log.d(TAG, "dbStory.getName() " + dbStory.getName());
-                    boolean alreadyAddedStory = false;
-                    for (Story localStory : storyList) {
-                        if (dbStory.getName().equals(localStory.name)) {
-                            Log.d(TAG, dbStory.getName() + " story already in storyList");
-                            alreadyAddedStory = true;
+                    if(dbStory != null) {
+                        Log.d(TAG, "dbStory.getName() " + dbStory.getName());
+                        boolean alreadyAddedStory = false;
+                        for (Story localStory : storyList) {
+                            if (dbStory.getName().equals(localStory.name)) {
+                                Log.d(TAG, dbStory.getName() + " story already in storyList");
+                                alreadyAddedStory = true;
+                            }
                         }
-                    }
-                    if (!alreadyAddedStory) {
-                        Story story = new Story();
-                        Log.d(TAG, dbStory.getName());
-                        story.name = dbStory.getName();
-                        story.content = dbStory.getContent();
-                        story.location = new LatLng(Double.parseDouble(dbStory.getLatitude()), Double.parseDouble(dbStory.getLongitude()));
-                        story.radius = Constants.GEOFENCE_RADIUS_IN_METERS;
-                        addStoryToGeofenceList(story);
-                        addStoryGeofence();
+                        if (!alreadyAddedStory) {
+                            Story story = new Story();
+                            Log.d(TAG, dbStory.getName());
+                            story.name = dbStory.getName();
+                            story.content = dbStory.getContent();
+                            story.location = new LatLng(Double.parseDouble(dbStory.getLatitude()), Double.parseDouble(dbStory.getLongitude()));
+                            story.radius = Constants.GEOFENCE_RADIUS_IN_METERS;
+                            addStoryToGeofenceList(story);
+                            addStoryGeofence();
+                        }
                     }
 
 
@@ -256,16 +260,15 @@ public class MainActivity extends FragmentActivity implements
                 public void onCancelled(FirebaseError firebaseError) {
 
                 }
-            };
+            });
+            Log.d(TAG, "this is beyond me");
 
-            specificStoryDB.addValueEventListener(storyValueListener);
-
-            specificStoryDB.removeEventListener(storyValueListener);
         }
     }
 
     @Override
     public void onKeyExited(String key){
+        Log.d(TAG, "onKeyExited called");
         for (int i = 0; i < storyList.size(); i++) {
             if (storyList.get(i).name.equals(key)) {
                 removeStory(storyList.get(i));
@@ -723,11 +726,11 @@ public class MainActivity extends FragmentActivity implements
             @Override
             public boolean onMarkerClick(Marker marker) {
                 for (Story story : storyList) {
-                    if (story.marker.equals(marker)){
-                        if(story.active){
+                    if (story.marker.equals(marker)) {
+                        if (story.active) {
                             goToViewStoryScreen(story);
                             return true;
-                        }else{
+                        } else {
                             marker.setSnippet("You're too far away to view this story");
                             return false;
                         }
@@ -743,6 +746,11 @@ public class MainActivity extends FragmentActivity implements
         viewStoryIntent.putExtra(Constants.EXTRA_STORY_NAME, story.name);
         viewStoryIntent.putExtra(Constants.EXTRA_STORY_CONTENT, story.content);
         startActivityForResult(viewStoryIntent, 1);
+    }
+
+    public void goToLoginScreen(){
+        Intent loginIntent = new Intent(this, LoginActivity.class);
+        startActivityForResult(loginIntent, 2);
     }
 
     protected void onActivityResult(int requestCode, int resultCode, Intent data){
