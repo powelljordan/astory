@@ -22,7 +22,7 @@ public final class Constants {
 
     public static final long GEOFENCE_EXPIRATION_IN_MILLISECONDS = GEOFENCING_EXPIRATION_IN_HOURS * 60 * 60 * 1000;
 
-    public static final float GEOFENCE_RADIUS_IN_METERS = 25;
+    public static final float GEOFENCE_RADIUS_IN_METERS = 35;
 
     public static final long UPDATE_INTERVAL_IN_MILLISECONDS = 10000;
 
@@ -38,7 +38,7 @@ public final class Constants {
     protected final static String LOCATION_KEY = "location-key";
     protected final static String LAST_UPDATED_TIME_STRING_KEY = "last-updated-time-string-key";
 
-    public static final float MAP_ZOOM_LEVEL = 19;
+    public static final float MAP_ZOOM_LEVEL = 18;
 
     public static final HashMap<String, LatLng> KEY_LOCATIONS = new HashMap<String, LatLng>();
     static {

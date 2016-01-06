@@ -28,6 +28,10 @@ import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
 import com.firebase.client.FirebaseError;
 import com.firebase.client.ValueEventListener;
+import com.firebase.geofire.GeoFire;
+import com.firebase.geofire.GeoLocation;
+import com.firebase.geofire.GeoQuery;
+import com.firebase.geofire.GeoQueryEventListener;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
 import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener;
@@ -61,7 +65,8 @@ import java.util.Map;
 
 
 public class MainActivity extends FragmentActivity implements
-        ConnectionCallbacks, OnConnectionFailedListener, ResultCallback<Status>, OnMapReadyCallback, LocationListener, AddGeofenceFragment.AddGeofenceFragmentListener {
+        ConnectionCallbacks, OnConnectionFailedListener, ResultCallback<Status>, OnMapReadyCallback,
+        LocationListener, AddGeofenceFragment.AddGeofenceFragmentListener, GeoQueryEventListener {
 
     protected static final String TAG = "MainActivity";
     /**
@@ -99,6 +104,8 @@ public class MainActivity extends FragmentActivity implements
     protected Location mCurrentLocation;
     private Firebase rootRef;
     private Firebase storiesDB;
+    private GeoFire geoFire;
+    private GeoQuery geoQuery;
     /**
      * Stores paramenters for requests to the FusedLocationProviderApi
      */
@@ -111,6 +118,9 @@ public class MainActivity extends FragmentActivity implements
         Firebase.setAndroidContext(this);
         rootRef = new Firebase("https://astory.firebaseio.com/");
         storiesDB = new Firebase("https://astory.firebaseio.com/stories");
+        geoFire = new GeoFire(new Firebase("https://astory.firebaseio.com/geoStories"));
+        geoQuery = geoFire.queryAtLocation(new GeoLocation(0,0), .1);
+
         setContentView(R.layout.activity_main);
 //        mAddGeofencesButton = (Button) findViewById(R.id.myFAB);
         mRemoveGeofencesButton = (Button) findViewById(R.id.remove_geofences_button);
@@ -154,6 +164,7 @@ public class MainActivity extends FragmentActivity implements
             //Update the value of mCurrentLocation from the Bundle
             if(savedInstanceState.keySet().contains(Constants.LOCATION_KEY)){
                 mCurrentLocation = savedInstanceState.getParcelable(Constants.LOCATION_KEY);
+                geoQuery.setCenter(new GeoLocation(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude()));
             }
             updateMap();
             LatLng myLocation = new LatLng(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude());
@@ -200,9 +211,81 @@ public class MainActivity extends FragmentActivity implements
 
     public void onLocationChanged(Location location){
         mCurrentLocation = location;
-
+        geoQuery.setCenter(new GeoLocation(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude()));
         updateMap();
 //        Toast.makeText(this, "Location updated", Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void onKeyEntered(String key, GeoLocation location){
+        Log.d(TAG, "onKeyEntered called");
+        if(mGeofenceList.size() < 100) {
+            Log.d(TAG, "mGeofenceList size is less than 100");
+            Log.d(TAG, "key " + key);
+            Firebase specificStoryDB = storiesDB.child(key);
+            ValueEventListener storyValueListener = new ValueEventListener() {
+                @Override
+                public void onDataChange(DataSnapshot dataSnapshot) {
+                    Log.d(TAG, "onDataChange");
+                    Log.d(TAG, "DataSnapshot: " + dataSnapshot);
+                    DBStory dbStory = dataSnapshot.getValue(DBStory.class);
+                    Log.d(TAG, "dbStory " + dbStory);
+                    Log.d(TAG, "dbStory.getName() " + dbStory.getName());
+                    boolean alreadyAddedStory = false;
+                    for (Story localStory : storyList) {
+                        if (dbStory.getName().equals(localStory.name)) {
+                            Log.d(TAG, dbStory.getName() + " story already in storyList");
+                            alreadyAddedStory = true;
+                        }
+                    }
+                    if (!alreadyAddedStory) {
+                        Story story = new Story();
+                        Log.d(TAG, dbStory.getName());
+                        story.name = dbStory.getName();
+                        story.content = dbStory.getContent();
+                        story.location = new LatLng(Double.parseDouble(dbStory.getLatitude()), Double.parseDouble(dbStory.getLongitude()));
+                        story.radius = Constants.GEOFENCE_RADIUS_IN_METERS;
+                        addStoryToGeofenceList(story);
+                        addStoryGeofence();
+                    }
+
+
+                }
+
+                @Override
+                public void onCancelled(FirebaseError firebaseError) {
+
+                }
+            };
+
+            specificStoryDB.addValueEventListener(storyValueListener);
+
+            specificStoryDB.removeEventListener(storyValueListener);
+        }
+    }
+
+    @Override
+    public void onKeyExited(String key){
+        for (int i = 0; i < storyList.size(); i++) {
+            if (storyList.get(i).name.equals(key)) {
+                removeStory(storyList.get(i));
+            }
+        }
+    }
+
+    @Override
+    public void onKeyMoved(String key, GeoLocation location){
+
+    }
+
+    @Override
+    public void onGeoQueryReady(){
+
+    }
+
+    @Override
+    public void onGeoQueryError(FirebaseError error){
+
     }
 
 
@@ -210,6 +293,7 @@ public class MainActivity extends FragmentActivity implements
     protected void onStart() {
         super.onStart();
         mGoogleApiClient.connect();
+        geoQuery.addGeoQueryEventListener(this);
         myReceiver = new MyReceiver();
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(Constants.MY_ACTION);
@@ -235,6 +319,7 @@ public class MainActivity extends FragmentActivity implements
     protected void onStop() {
         super.onStop();
         mGoogleApiClient.disconnect();
+        geoQuery.removeAllListeners();
         unregisterReceiver(myReceiver);
     }
 
@@ -242,9 +327,19 @@ public class MainActivity extends FragmentActivity implements
     protected void onPause(){
         super.onPause();
         if(mGoogleApiClient.isConnected() && mRequestingLocationUpdates){
-            startLocationUpdates();
+            stopLocationUpdates();
         }
     }
+
+    @Override
+    protected void onDestroy(){
+        super.onDestroy();
+        for(Story story: storyList){
+            removeStory(story);
+        }
+    }
+
+
 
     /**
      * Runs when a GoogleApiClient object successfully connects.
@@ -272,54 +367,6 @@ public class MainActivity extends FragmentActivity implements
         if(viewStoryData != null){
             onActivityResult(viewStoryRequestCode, viewStoryResultCode, viewStoryData);
         }
-
-        storiesDB.addChildEventListener(new ChildEventListener() {
-            @Override
-            public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-                DBStory dbStory = dataSnapshot.getValue(DBStory.class);
-                boolean alreadyAddedStory = false;
-                for (Story localStory : storyList) {
-                    if (dbStory.getName().equals(localStory.name)) {
-                        alreadyAddedStory = true;
-                    }
-                }
-                if (!alreadyAddedStory) {
-                    Story story = new Story();
-                    story.name = dbStory.getName();
-                    story.content = dbStory.getContent();
-                    story.location = new LatLng(Double.parseDouble(dbStory.getLatitude()), Double.parseDouble(dbStory.getLongitude()));
-                    story.radius = Constants.GEOFENCE_RADIUS_IN_METERS;
-                    addStoryToGeofenceList(story);
-                }
-
-            }
-
-            @Override
-            public void onChildChanged(DataSnapshot dataSnapshot, String s) {
-
-            }
-
-            @Override
-            public void onChildRemoved(DataSnapshot dataSnapshot) {
-                DBStory dbStory = dataSnapshot.getValue(DBStory.class);
-                for (int i = 0; i < storyList.size(); i++) {
-                    if (storyList.get(i).name.equals(dbStory.getName())) {
-                        removeStory(storyList.get(i));
-                    }
-                }
-
-            }
-
-            @Override
-            public void onChildMoved(DataSnapshot dataSnapshot, String s) {
-
-            }
-
-            @Override
-            public void onCancelled(FirebaseError firebaseError) {
-
-            }
-        });
     }
 
     @Override
@@ -565,6 +612,7 @@ public class MainActivity extends FragmentActivity implements
         if(story == null){
             Toast.makeText(this, "story is undefined", Toast.LENGTH_SHORT);
         }else {
+            mGeofenceList = new ArrayList<>();
             mGeofenceList.add(new Geofence.Builder()
                     // Set the request ID of the geofence. This is a string to identify this
                     // geofence.
@@ -599,6 +647,7 @@ public class MainActivity extends FragmentActivity implements
             story.marker = storyMarker;
             storyList.add(story);
             addStoryToDB(story);
+
         }
     }
 
@@ -610,6 +659,8 @@ public class MainActivity extends FragmentActivity implements
         storyObj.put("longitude", Double.toString(story.location.longitude));
         Firebase storyRef = storiesDB.child(story.name);
         storyRef.setValue(storyObj);
+        geoFire.setLocation(story.name, new GeoLocation(story.location.latitude, story.location.longitude));
+
     }
 
     public void removeStory(Story story) {
@@ -620,6 +671,7 @@ public class MainActivity extends FragmentActivity implements
         mGeofenceList.remove(story);
 //        Log.d(TAG, "storyList: " + storyList);
         storiesDB.child(story.name).removeValue();
+        geoFire.removeLocation(story.name);
         storyList.remove(story);
 //        mMap.clear();
     }
