@@ -10,6 +10,7 @@ import com.google.android.gms.maps.model.Marker;
 public class Story {
     public String name;
     public String content;
+    public String author;
     public LatLng location;
     public double radius;
     public Marker marker;
@@ -24,6 +25,7 @@ public class Story {
     public String toString(){
         return "Name: " + this.name +
                 "\n Content: "  +  this.content  +
+                "\n Author:  "  +  this.author   +
                 "\n Location: " +  this.location +
                 "\n Radius: "   +  this.radius   +
                 "\n Marker: "   +  this.marker   +

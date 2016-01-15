@@ -37,8 +37,10 @@ public final class Constants {
     protected final static String REQUESTING_LOCATION_UPDATES_KEY = "requesting-location-updates-key";
     protected final static String LOCATION_KEY = "location-key";
     protected final static String LAST_UPDATED_TIME_STRING_KEY = "last-updated-time-string-key";
+    protected final static String CURRENT_USER_ID_KEY = "current-user-id-key";
 
     public static final float MAP_ZOOM_LEVEL = 18;
+    public static final double STORY_QUERY_RADIUS = .2;
 
     public static final HashMap<String, LatLng> KEY_LOCATIONS = new HashMap<String, LatLng>();
     static {
@@ -58,8 +60,28 @@ public final class Constants {
 
     public final static String EXTRA_STORY_CONTENT = "jordan.astory.STORY_CONTENT";
     public final static String EXTRA_STORY_NAME = "jordan.astory.STORY_NAME";
+    public final static String EXTRA_STORY_AUTHOR = "jordan.astory.STORY_AUTHOR";
+    public final static String EXTRA_CURRENT_USER = "jordan.astory.CURRENT_USER";
     public final static String VIEW_STORY_KEY = "jordan.astory.STORY_KEY";
+    public final static String EXTRA_STORY_COMMENT = "jordan.astory.STORY_COMMENT";
 
-
+    public final static String CURRENT_USER_ID = "jordan.astory.CURRENT_USER_ID";
     final static String MY_ACTION = "MY_ACTION";
+
+
+//    Cloudinary API info
+    public final static String CLOUDINARY_API_KEY = "349733414781831";
+    public final static String CLOUDINARY_API_SECRET = "bLX2fK3e4TC5z0ikXmPSdi_TNzg";
+    public final static String CLOUDINARY_ENVIRONMENT_VARIABLE = "cloudinary://349733414781831:bLX2fK3e4TC5z0ikXmPSdi_TNzg@dsck8wsag";
+
+//    AWS Stuff
+    public final static String IDENTITY_POOL_ID = "us-east-1:3e0f22c1-492a-42bc-84c8-09aa8ee7751e";
+
+//    Media Stuff
+    public final static String MEDIA = "jordan.astory.MEDIA";
+    public final static int MEDIA_VIDEO = 11;
+    public final static int MEDIA_IMAGE = 12;
+    public final static int MEDIA_IMAGE_REQUEST_CODE = 13;
+    public final static int MEDIA_VIDEO_REQUEST_CODE = 14;
+    public final static String MEDIA_STORY_NAME = "jordan.astory.MEIDA_STORY_NAME";
 }

@@ -2,28 +2,94 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical" android:layout_width="match_parent"
     android:layout_height="match_parent">
+    <RelativeLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content">
+        <LinearLayout
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/user"
+            android:paddingLeft="10dp">
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:id="@+id/avatar"
+                android:src="@mipmap/ic_person_black_24dp"/>
+            <TextView
+                android:paddingTop="10dp"
+                android:paddingLeft="10dp"
+                android:paddingRight="10dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="author"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:id="@+id/view_story_author"
+                />
+        </LinearLayout>
+        <ImageButton
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginRight="10dp"
+            android:layout_alignBottom="@+id/user"
+            android:background="@color/background_holo_light"
+            android:onClick="onDeleteStory"
+            android:layout_alignParentRight="true"
+            android:id="@+id/delete_story_button"
+            android:src="@mipmap/ic_delete_black_24dp"
+
+            />
+    </RelativeLayout>
 
     <TextView
-        android:paddingTop="15dp"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="Test"
+        android:textSize="40dp"
         android:textAppearance="?android:attr/textAppearanceLarge"
         android:id="@+id/view_story_name" />
 
+
     <TextView
         android:paddingTop="35dp"
+        android:paddingLeft="20dp"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textAppearance="?android:attr/textAppearanceMedium"
-        android:id="@+id/view_story_content" />
+        android:id="@+id/view_story_content"
+         />
 
-    <Button
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="100dp"
-        android:onClick="onDeleteStory"
-        android:text="Remove this Geofence"
-        android:id="@+id/delete_story_button"
-       />
+
+
+
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent">
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/add_media"
+            android:onClick="takePicture"
+            android:layout_gravity="bottom" />
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_gravity="bottom"
+            android:onClick="goToComments"
+            android:text="@string/comments"
+            />
+        <!--<Button-->
+            <!--android:layout_weight="1"-->
+            <!--android:layout_width="wrap_content"-->
+            <!--android:layout_height="wrap_content"-->
+            <!--android:text="@string/record_video"-->
+            <!--android:onClick="recordVideo"-->
+            <!--android:layout_gravity="bottom" />-->
+    </LinearLayout>
+
+
 
 </LinearLayout>

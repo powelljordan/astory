@@ -31,7 +31,7 @@
 
     <!--Add Geofence Dialog Strings-->
     <string name="add_geofence_title">Leave a story</string>
-    <string name="add_geofence_name_hint">Name</string>
+    <string name="add_geofence_name_hint">Title</string>
     <string name="add_geofence_story_hint">What\'s your story?</string>
     <string name="add_geofence_radius_hint">Choose a radius between 15 meters and 100 meters</string>
 
@@ -39,6 +39,25 @@
     <string name="Cancel">Cancel</string>
 
 
-    <string name="google_client_id">118911688369-1oepit1f9gorv2oagfg1c3lah69a2buh.apps.googleusercontent.com</string>
+    <string name="google_client_id">118911688369-8uio598dd6pp6fotdgdp1l40h8e73s96.apps.googleusercontent.com</string>
     <!--Display Story Activity Strings-->
+    <string name="remove_story">Delete Story</string>
+    <string name="comments">Comments</string>
+    <string name="take_picture">Add Picture</string>
+    <string name="record_video">Add Video</string>
+    <string name="add_media">Add Media</string>
+
+    <!--Comment Activity Strings-->
+    <string name="send_button">Send</string>
+    <string name="comment_hint">Write a comment . . . </string>
+    <!--Login Page Strings>-->
+    <string name="login_with_google">Login with Google</string>
+    <string name="sign_in_button">Sign In</string>
+    <string name="register_button">Register</string>
+
+    <!--Registration Page Strings-->
+    <string name="email_hint">example@mit.edu</string>
+    <string name="username_hint">example</string>
+    <string name="password_hint">Password</string>
+    <string name="registration_button">Register</string>
 </resources>

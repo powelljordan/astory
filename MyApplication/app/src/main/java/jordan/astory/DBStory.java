@@ -10,6 +10,7 @@ import com.google.android.gms.maps.model.Marker;
 public class DBStory {
     private String name;
     private String content;
+    private String author;
     private String latitude;
     private String longitude;
     public DBStory(){
@@ -23,6 +24,8 @@ public class DBStory {
     public String getContent(){
         return content;
     }
+
+    public String getAuthor(){return author;}
 
     public String getLatitude(){
         return latitude;

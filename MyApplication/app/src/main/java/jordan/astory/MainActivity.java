@@ -104,8 +104,13 @@ public class MainActivity extends FragmentActivity implements
     protected Location mCurrentLocation;
     private Firebase rootRef;
     private Firebase storiesDB;
+    private Firebase commentsDB;
     private GeoFire geoFire;
     private GeoQuery geoQuery;
+
+    public String currentUserID;
+    public static DBUser currentUser;
+
     /**
      * Stores paramenters for requests to the FusedLocationProviderApi
      */
@@ -117,13 +122,14 @@ public class MainActivity extends FragmentActivity implements
         super.onCreate(savedInstanceState);
         Firebase.setAndroidContext(this);
         rootRef = new Firebase("https://astory.firebaseio.com/");
-        storiesDB = new Firebase("https://astory.firebaseio.com/stories");
+        storiesDB = rootRef.child("stories");
+        commentsDB = rootRef.child("comments");
         geoFire = new GeoFire(new Firebase("https://astory.firebaseio.com/geoStories"));
-        geoQuery = geoFire.queryAtLocation(new GeoLocation(0,0), .1);
+        geoQuery = geoFire.queryAtLocation(new GeoLocation(0,0), Constants.STORY_QUERY_RADIUS);
 
         setContentView(R.layout.activity_main);
 //        mAddGeofencesButton = (Button) findViewById(R.id.myFAB);
-        mRemoveGeofencesButton = (Button) findViewById(R.id.remove_geofences_button);
+
 //
         mGeofenceList = new ArrayList<Geofence>();
         storyList = new ArrayList<Story>();
@@ -151,9 +157,30 @@ public class MainActivity extends FragmentActivity implements
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
         fragmentManager = getSupportFragmentManager();
-        goToLoginScreen();
-    }
+        handleLogin();
 
+    }
+    private void handleLogin(){
+        if(rootRef.getAuth() == null) {
+            goToLoginScreen();
+        }
+        currentUserID = mSharedPreferences.getString(Constants.CURRENT_USER_ID_KEY, "N/A");
+        if(currentUserID.equals("N/A")){
+            Log.e(TAG, "User has not logged in and is not in Shared Preferences");
+        }
+        rootRef.child("users").child(currentUserID).addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                currentUser = dataSnapshot.getValue(DBUser.class);
+//                Log.d(TAG, "currentUser: " + currentUser);
+            }
+
+            @Override
+            public void onCancelled(FirebaseError firebaseError) {
+                Log.e(TAG, firebaseError.toString());
+            }
+        });
+    }
     private void updateValuesFromBundle(Bundle savedInstanceState) {
         Log.i(TAG, "Updating values from bundle");
         if(savedInstanceState != null){
@@ -219,37 +246,37 @@ public class MainActivity extends FragmentActivity implements
 
     @Override
     public void onKeyEntered(String key, GeoLocation location){
-        Log.d(TAG, "onKeyEntered called");
+//        Log.d(TAG, "onKeyEntered called");
         if(mGeofenceList.size() < 100) {
-            Log.d(TAG, "mGeofenceList size is less than 100");
-            Log.d(TAG, "key " + key);
+//            Log.d(TAG, "mGeofenceList size is less than 100");
+//            Log.d(TAG, "key " + key);
             Firebase specificStoryDB = storiesDB.child(key);
 
             specificStoryDB.addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override
                 public void onDataChange(DataSnapshot dataSnapshot) {
-                    Log.d(TAG, "onDataChange");
-                    Log.d(TAG, "DataSnapshot: " + dataSnapshot);
                     DBStory dbStory = dataSnapshot.getValue(DBStory.class);
-                    Log.d(TAG, "dbStory " + dbStory);
-                    if(dbStory != null) {
-                        Log.d(TAG, "dbStory.getName() " + dbStory.getName());
+//                    Log.d(TAG, "dbStory " + dbStory);
+                    if (dbStory != null) {
                         boolean alreadyAddedStory = false;
                         for (Story localStory : storyList) {
                             if (dbStory.getName().equals(localStory.name)) {
-                                Log.d(TAG, dbStory.getName() + " story already in storyList");
+//                                Log.d(TAG, dbStory.getName() + " story already in storyList");
                                 alreadyAddedStory = true;
                             }
                         }
                         if (!alreadyAddedStory) {
+                            Log.d(TAG, "adding "+dbStory.getName()+" to storyList");
                             Story story = new Story();
                             Log.d(TAG, dbStory.getName());
                             story.name = dbStory.getName();
                             story.content = dbStory.getContent();
                             story.location = new LatLng(Double.parseDouble(dbStory.getLatitude()), Double.parseDouble(dbStory.getLongitude()));
                             story.radius = Constants.GEOFENCE_RADIUS_IN_METERS;
+                            story.author = dbStory.getAuthor();
                             addStoryToGeofenceList(story);
                             addStoryGeofence();
+                            Log.d(TAG, "Now storyList contains "+storyList.size()+" stories");
                         }
                     }
 
@@ -261,17 +288,17 @@ public class MainActivity extends FragmentActivity implements
 
                 }
             });
-            Log.d(TAG, "this is beyond me");
+//            Log.d(TAG, "this is beyond me");
 
         }
     }
 
     @Override
     public void onKeyExited(String key){
-        Log.d(TAG, "onKeyExited called");
+//        Log.d(TAG, "onKeyExited called");
         for (int i = 0; i < storyList.size(); i++) {
             if (storyList.get(i).name.equals(key)) {
-                removeStory(storyList.get(i));
+                removeStoryFromDevice(storyList.get(i));
             }
         }
     }
@@ -301,7 +328,7 @@ public class MainActivity extends FragmentActivity implements
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(Constants.MY_ACTION);
         registerReceiver(myReceiver, intentFilter);
-        Log.d(TAG, "receiver registered");
+//        Log.d(TAG, "receiver registered");
 
         //Start our own service
 //        Intent intent = new Intent(MainActivity.this,
@@ -321,6 +348,10 @@ public class MainActivity extends FragmentActivity implements
     @Override
     protected void onStop() {
         super.onStop();
+        for(int i = 0; i < storyList.size(); i++){
+            Story story = storyList.get(i);
+            removeStoryFromDevice(story);
+        }
         mGoogleApiClient.disconnect();
         geoQuery.removeAllListeners();
         unregisterReceiver(myReceiver);
@@ -337,9 +368,6 @@ public class MainActivity extends FragmentActivity implements
     @Override
     protected void onDestroy(){
         super.onDestroy();
-        for(Story story: storyList){
-            removeStory(story);
-        }
     }
 
 
@@ -370,6 +398,7 @@ public class MainActivity extends FragmentActivity implements
         if(viewStoryData != null){
             onActivityResult(viewStoryRequestCode, viewStoryResultCode, viewStoryData);
         }
+
     }
 
     @Override
@@ -404,7 +433,7 @@ public class MainActivity extends FragmentActivity implements
         builder.addGeofences(mGeofenceList);
 
         // Return a GeofencingRequest.
-        Log.d(TAG, "returns Geofencing request");
+//        Log.d(TAG, "returns Geofencing request");
         return builder.build();
     }
 
@@ -573,7 +602,7 @@ public class MainActivity extends FragmentActivity implements
 //        this.startService(intent);
         // We use FLAG_UPDATE_CURRENT so that we get the same pending intent back when calling
         // addGeofences() and removeGeofences().
-        Log.d(TAG, "returns getGeofencePendingIntent");
+//        Log.d(TAG, "returns getGeofencePendingIntent");
         return PendingIntent.getService(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
@@ -640,9 +669,9 @@ public class MainActivity extends FragmentActivity implements
                             // Create the geofence.
                     .build());
 
-            Log.d(TAG, "Geofence list has : " + mGeofenceList.size() + " items");
+//            Log.d(TAG, "Geofence list has : " + mGeofenceList.size() + " items");
             for(Geofence geo: mGeofenceList){
-                Log.d(TAG, "item " + geo.getRequestId());
+//                Log.d(TAG, "item " + geo.getRequestId());
             }
             story.geofence = mGeofenceList.get(0);
             Marker storyMarker = mMap.addMarker(new MarkerOptions().position(story.location).title(story.name));
@@ -660,23 +689,33 @@ public class MainActivity extends FragmentActivity implements
         storyObj.put("content", story.content);
         storyObj.put("latitude", Double.toString(story.location.latitude));
         storyObj.put("longitude", Double.toString(story.location.longitude));
+        storyObj.put("author", story.author);
         Firebase storyRef = storiesDB.child(story.name);
+        Firebase userRef = new Firebase("https://astory.firebaseio.com/users");
         storyRef.setValue(storyObj);
         geoFire.setLocation(story.name, new GeoLocation(story.location.latitude, story.location.longitude));
-
     }
 
     public void removeStory(Story story) {
 //        Log.d(TAG, "story.marker: " + story.marker);
         story.marker.remove();
-        Log.d(TAG, "removeStoryGeofence called");
+        Log.d(TAG, "removeStory called");
         removeStoryGeofence(story);
         mGeofenceList.remove(story);
 //        Log.d(TAG, "storyList: " + storyList);
         storiesDB.child(story.name).removeValue();
+        commentsDB.child(story.name).removeValue();
         geoFire.removeLocation(story.name);
         storyList.remove(story);
 //        mMap.clear();
+    }
+
+    public void removeStoryFromDevice(Story story){
+        Log.d(TAG, "removeStoryFromDevice");
+        story.marker.remove();
+        removeStoryGeofence(story);
+        mGeofenceList.remove(story);
+        storyList.remove(story);
     }
 
     /**
@@ -687,10 +726,10 @@ public class MainActivity extends FragmentActivity implements
     private void setButtonsEnabledState() {
         if (mGeofencesAdded) {
 //            mAddGeofencesButton.setEnabled(false);
-            mRemoveGeofencesButton.setEnabled(true);
+//            mRemoveGeofencesButton.setEnabled(true);
         } else {
 //            mAddGeofencesButton.setEnabled(true);
-            mRemoveGeofencesButton.setEnabled(false);
+//            mRemoveGeofencesButton.setEnabled(false);
         }
     }
 
@@ -745,7 +784,11 @@ public class MainActivity extends FragmentActivity implements
         Intent viewStoryIntent = new Intent(this, ViewStoryActivity.class);
         viewStoryIntent.putExtra(Constants.EXTRA_STORY_NAME, story.name);
         viewStoryIntent.putExtra(Constants.EXTRA_STORY_CONTENT, story.content);
+        viewStoryIntent.putExtra(Constants.EXTRA_STORY_AUTHOR, story.author);
+        viewStoryIntent.putExtra(Constants.EXTRA_CURRENT_USER, currentUser.getUsername());
+        Log.d(TAG, "right before viewStoryScreeen storyList has "+storyList.size()+" items");
         startActivityForResult(viewStoryIntent, 1);
+        Log.d(TAG, "right after viewStoryScreen storyList has "+storyList.size()+" items");
     }
 
     public void goToLoginScreen(){
@@ -753,7 +796,14 @@ public class MainActivity extends FragmentActivity implements
         startActivityForResult(loginIntent, 2);
     }
 
-    protected void onActivityResult(int requestCode, int resultCode, Intent data){
+    public void logout(View v){
+        rootRef.unauth();
+        goToLoginScreen();
+
+    }
+
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
         Log.d(TAG, Boolean.toString(mGoogleApiClient.isConnected()));
         if(!mGoogleApiClient.isConnected()){
             viewStoryRequestCode = requestCode;
@@ -761,9 +811,10 @@ public class MainActivity extends FragmentActivity implements
             viewStoryData = data;
         }else {
             if ((requestCode == 1) && (resultCode == RESULT_OK)) {
+                Log.d(TAG, "Tries to delete story");
                 String viewStory;
                 viewStory = data.getExtras().getString(Constants.VIEW_STORY_KEY);
-
+                Log.d(TAG, "storyList.size() " + storyList.size());
                 for (int i = 0; i < storyList.size(); i++) {
                     Story story = storyList.get(i);
                     Log.d(TAG, "story: " + story.name);
@@ -775,9 +826,29 @@ public class MainActivity extends FragmentActivity implements
                 }
 
             }
+            else if((requestCode == 2) && (resultCode == RESULT_OK)){
+//                Log.d(TAG, "Login activity returns result");
+                currentUserID = data.getExtras().getString(Constants.CURRENT_USER_ID);
+                SharedPreferences.Editor editor = mSharedPreferences.edit();
+                editor.putString(Constants.CURRENT_USER_ID_KEY, currentUserID);
+                editor.apply();
+
+//                Log.d(TAG, "currentUserID: " + currentUserID);
+                rootRef.child("users").child(currentUserID).addValueEventListener(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(DataSnapshot dataSnapshot) {
+                        currentUser = dataSnapshot.getValue(DBUser.class);
+//                        Log.d(TAG, "currentUser: " +currentUser);
+                    }
+
+                    @Override
+                    public void onCancelled(FirebaseError firebaseError) {
+
+                    }
+                });
+            }
             viewStoryData = null;
         }
-        super.onActivityResult(requestCode, resultCode, data);
     }
     // region AddGeofenceFragmentListener
 
@@ -799,36 +870,14 @@ public class MainActivity extends FragmentActivity implements
             story.location = new LatLng(mCurrentLocation.getLatitude(),
                     mCurrentLocation.getLongitude());
             story.radius = Constants.GEOFENCE_RADIUS_IN_METERS;
+//            Log.d(TAG, currentUser.toString());
+            story.author = currentUser.getUsername();
             addStoryToGeofenceList(story);
             addStoryGeofence();
-            Log.d(TAG, "Definitely calls onFinishedInputDialog");
+//            Log.d(TAG, "Definitely calls onFinishedInputDialog");
+            goToViewStoryScreen(story);
             startLocationUpdates();
         }
-
-//    private boolean dataIsValid() {
-//        boolean validData = true;
-//
-//        String name = getViewHolder().nameEditText.getText().toString();
-//        String latitudeString = getViewHolder().latitudeEditText.getText().toString();
-//        String longitudeString = getViewHolder().longitudeEditText.getText().toString();
-//        String radiusString = getViewHolder().radiusEditText.getText().toString();
-//
-//        if (TextUtils.isEmpty(name) || TextUtils.isEmpty(latitudeString)
-//                || TextUtils.isEmpty(longitudeString) || TextUtils.isEmpty(radiusString)) {
-//            validData = false;
-//        } else {
-//            double latitude = Double.parseDouble(latitudeString);
-//            double longitude = Double.parseDouble(longitudeString);
-//            float radius = Float.parseFloat(radiusString);
-//            if ((latitude < Constants.Geometry.MinLatitude || latitude > Constants.Geometry.MaxLatitude)
-//                    || (longitude < Constants.Geometry.MinLongitude || longitude > Constants.Geometry.MaxLongitude)
-//                    || (radius < Constants.Geometry.MinRadius || radius > Constants.Geometry.MaxRadius)) {
-//                validData = false;
-//            }
-//        }
-//
-//        return validData;
-//    }
 
     public void showDialog(View v){
 //        addGeofencesButtonHandler(v);
@@ -842,6 +891,7 @@ public class MainActivity extends FragmentActivity implements
     private class MyReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context arg0, Intent arg1){
+            Log.d(TAG, "storyList in Broadcast receiver contains "+ storyList.size() + " items");
             ArrayList<String> datapassed = arg1.getStringArrayListExtra("DATAPASSED");
             int transition = arg1.getIntExtra("TRANSITION", Geofence.GEOFENCE_TRANSITION_ENTER);
             for(String geofenceId: datapassed){
@@ -851,7 +901,7 @@ public class MainActivity extends FragmentActivity implements
     }
 
     private void updateViewableStories(int transition, String id){
-        Log.d(TAG, "updateViewableStories id: " + id + "\n transition: " + transition);
+//        Log.d(TAG, "updateViewableStories id: " + id + "\n transition: " + transition);
         if(transition == Geofence.GEOFENCE_TRANSITION_ENTER){
             for(Story story: storyList){
                 if(story.name.equals(id)){
