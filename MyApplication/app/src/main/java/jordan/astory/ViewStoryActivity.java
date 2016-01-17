@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -33,6 +34,7 @@ public class ViewStoryActivity extends AppCompatActivity {
     private String content;
     private String author;
     private String currentUser;
+    private Uri mediaUri;
     private ImageButton deleteButton;
     private Firebase usersDB = new Firebase("https://astory.firebaseio.com/users");
     private Firebase storiesDB = new Firebase("https://astory.firebaseio.com/stories");
@@ -104,21 +106,14 @@ public class ViewStoryActivity extends AppCompatActivity {
         startActivity(commentIntent);
     }
 
-    public void takePicture(View v){
+    public void goToMedia(View v){
         Intent mediaIntent = new Intent(this, MediaActivity.class);
-        mediaIntent.putExtra(Constants.MEDIA, Constants.MEDIA_IMAGE);
+        Log.d(TAG, "viewStory storyName: " + name);
         mediaIntent.putExtra(Constants.MEDIA_STORY_NAME, name);
-        startActivityForResult(mediaIntent, Constants.MEDIA_IMAGE_REQUEST_CODE);
+        mediaIntent.putExtra(Constants.EXTRA_CURRENT_USER, currentUser);
+        mediaIntent.putExtra(Constants.EXTRA_STORY_AUTHOR, author);
+        startActivityForResult(mediaIntent, Constants.MEDIA_REQUEST_CODE);
     }
-
-    public void recordVideo(View v){
-        Intent mediaIntent = new Intent(this, MediaActivity.class);
-        mediaIntent.putExtra(Constants.MEDIA, Constants.MEDIA_VIDEO);
-        mediaIntent.putExtra(Constants.MEDIA_STORY_NAME, name);
-        startActivityForResult(mediaIntent, Constants.MEDIA_VIDEO_REQUEST_CODE);
-    }
-
-
 
 
 

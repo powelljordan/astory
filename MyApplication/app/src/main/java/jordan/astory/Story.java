@@ -15,6 +15,8 @@ public class Story {
     public double radius;
     public Marker marker;
     public Geofence geofence;
+    public String mediaUri;
+    public String mediaType;
     public boolean active = false;
 
     public Story(){
@@ -30,6 +32,8 @@ public class Story {
                 "\n Radius: "   +  this.radius   +
                 "\n Marker: "   +  this.marker   +
                 "\n Geofence: " +  this.geofence +
-                "\n Geofence: " +  this.active;
+                "\n Active: " +    this.active   +
+                "\n Media Uri: "+  this.mediaUri +
+                "\n Media Type:"+  this.mediaType;
     }
 }

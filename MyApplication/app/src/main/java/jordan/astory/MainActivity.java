@@ -274,7 +274,7 @@ public class MainActivity extends FragmentActivity implements
                             story.location = new LatLng(Double.parseDouble(dbStory.getLatitude()), Double.parseDouble(dbStory.getLongitude()));
                             story.radius = Constants.GEOFENCE_RADIUS_IN_METERS;
                             story.author = dbStory.getAuthor();
-                            addStoryToGeofenceList(story);
+                            addStoryToDevice(story);
                             addStoryGeofence();
                             Log.d(TAG, "Now storyList contains "+storyList.size()+" stories");
                         }
@@ -690,6 +690,7 @@ public class MainActivity extends FragmentActivity implements
         storyObj.put("latitude", Double.toString(story.location.latitude));
         storyObj.put("longitude", Double.toString(story.location.longitude));
         storyObj.put("author", story.author);
+//        Log.d(TAG, "addStoryToDB is in fact getting called");
         Firebase storyRef = storiesDB.child(story.name);
         Firebase userRef = new Firebase("https://astory.firebaseio.com/users");
         storyRef.setValue(storyObj);
@@ -716,6 +717,47 @@ public class MainActivity extends FragmentActivity implements
         removeStoryGeofence(story);
         mGeofenceList.remove(story);
         storyList.remove(story);
+    }
+
+    public void addStoryToDevice(Story story){
+        if(story == null){
+            Toast.makeText(this, "story is undefined", Toast.LENGTH_SHORT);
+        }else {
+            mGeofenceList = new ArrayList<>();
+            mGeofenceList.add(new Geofence.Builder()
+                    // Set the request ID of the geofence. This is a string to identify this
+                    // geofence.
+                    .setRequestId(story.name)
+
+                            // Set the circular region of this geofence.
+                    .setCircularRegion(
+                            story.location.latitude,
+                            story.location.longitude,
+                            Constants.GEOFENCE_RADIUS_IN_METERS
+                    )
+
+                            // Set the expiration duration of the geofence. This geofence gets automatically
+                            // removed after this period of time.
+                    .setExpirationDuration(Constants.GEOFENCE_EXPIRATION_IN_MILLISECONDS)
+
+                            // Set the transition types of interest. Alerts are only generated for these
+                            // transition. We track entry and exit transitions in this sample.
+                    .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER |
+                            Geofence.GEOFENCE_TRANSITION_EXIT)
+
+                            // Create the geofence.
+                    .build());
+
+//            Log.d(TAG, "Geofence list has : " + mGeofenceList.size() + " items");
+            for (Geofence geo : mGeofenceList) {
+//                Log.d(TAG, "item " + geo.getRequestId());
+            }
+            story.geofence = mGeofenceList.get(0);
+            Marker storyMarker = mMap.addMarker(new MarkerOptions().position(story.location).title(story.name));
+//        addMarkerListener();
+            story.marker = storyMarker;
+            storyList.add(story);
+        }
     }
 
     /**

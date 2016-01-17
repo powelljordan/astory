@@ -13,6 +13,8 @@ public class DBStory {
     private String author;
     private String latitude;
     private String longitude;
+    private String mediaUri;
+    private String mediaType;
     public DBStory(){
 
     }
@@ -33,5 +35,13 @@ public class DBStory {
 
     public String getLongitude(){
         return longitude;
+    }
+
+    public String getMediaUri(){
+        return mediaUri;
+    }
+
+    public String getMediaType(){
+        return mediaType;
     }
 }

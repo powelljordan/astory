@@ -81,7 +81,10 @@ public final class Constants {
     public final static String MEDIA = "jordan.astory.MEDIA";
     public final static int MEDIA_VIDEO = 11;
     public final static int MEDIA_IMAGE = 12;
-    public final static int MEDIA_IMAGE_REQUEST_CODE = 13;
+    public final static int MEDIA_REQUEST_CODE = 13;
     public final static int MEDIA_VIDEO_REQUEST_CODE = 14;
+    public final static String MEDIA_TYPE = "jordan.astory.MEDIA_TYPE";
+    public final static String MEDIA_URI = "jordan.astory.MEDIA_URI";
+    public final static String MEDIA_IMAGE_URI = "jordan.astory.MEDIA_IMAGE_URI";
     public final static String MEDIA_STORY_NAME = "jordan.astory.MEIDA_STORY_NAME";
 }

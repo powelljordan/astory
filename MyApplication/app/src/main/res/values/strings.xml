@@ -45,7 +45,7 @@
     <string name="comments">Comments</string>
     <string name="take_picture">Add Picture</string>
     <string name="record_video">Add Video</string>
-    <string name="add_media">Add Media</string>
+    <string name="add_media">Multimedia</string>
 
     <!--Comment Activity Strings-->
     <string name="send_button">Send</string>
