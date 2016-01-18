@@ -57,9 +57,13 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
 
 
@@ -238,6 +242,7 @@ public class MainActivity extends FragmentActivity implements
     }
 
     public void onLocationChanged(Location location){
+        Log.d(TAG, "location: "+location);
         mCurrentLocation = location;
         geoQuery.setCenter(new GeoLocation(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude()));
         updateMap();
@@ -328,6 +333,8 @@ public class MainActivity extends FragmentActivity implements
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(Constants.MY_ACTION);
         registerReceiver(myReceiver, intentFilter);
+        GeofenceTransitionsIntentService.notify = false;
+        mLocationRequest.setInterval(Constants.UPDATE_INTERVAL_IN_MILLISECONDS);
 //        Log.d(TAG, "receiver registered");
 
         //Start our own service
@@ -341,28 +348,37 @@ public class MainActivity extends FragmentActivity implements
     public void onResume(){
         super.onResume();
         if(mGoogleApiClient.isConnected() && mRequestingLocationUpdates){
-            startLocationUpdates();
+//            startLocationUpdates();
         }
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        for(int i = 0; i < storyList.size(); i++){
-            Story story = storyList.get(i);
-            removeStoryFromDevice(story);
-        }
-        mGoogleApiClient.disconnect();
+//        for(int i = 0; i < storyList.size(); i++){
+//            Story story = storyList.get(i);
+//            removeStoryFromDevice(story);
+//        }
+//        mGoogleApiClient.disconnect();
         geoQuery.removeAllListeners();
         unregisterReceiver(myReceiver);
+        GeofenceTransitionsIntentService.notify = true;
+        Log.d(TAG, "notify: " + GeofenceTransitionsIntentService.notify);
     }
 
     @Override
     protected void onPause(){
         super.onPause();
         if(mGoogleApiClient.isConnected() && mRequestingLocationUpdates){
+            mLocationRequest.setInterval(Constants.INACTIVE_UPDATE_INTERVAL_IN_MILLISECONDS);
+            mLocationRequest.setFastestInterval(Constants.INACTIVE_UPDATE_INTERVAL_IN_MILLISECONDS);
             stopLocationUpdates();
+            startLocationUpdates();
+            Log.d(TAG, "Interval: " + mLocationRequest.getInterval());
+//            stopLocationUpdates();
         }
+        GeofenceTransitionsIntentService.notify = true;
+        Log.d(TAG, "notify: " + GeofenceTransitionsIntentService.notify);
     }
 
     @Override
@@ -389,6 +405,8 @@ public class MainActivity extends FragmentActivity implements
             }catch(SecurityException securityException){
                 logSecurityException(securityException);
             }
+            stopLocationUpdates();
+            startLocationUpdates();
 
         }
         if(mRequestingLocationUpdates){
@@ -470,7 +488,7 @@ public class MainActivity extends FragmentActivity implements
 
     public void addStoryGeofence(){
         if (!mGoogleApiClient.isConnected()) {
-            Toast.makeText(this, getString(R.string.not_connected), Toast.LENGTH_SHORT).show();
+//            Toast.makeText(this, getString(R.string.not_connected), Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -687,6 +705,7 @@ public class MainActivity extends FragmentActivity implements
         HashMap<String, String> storyObj = new HashMap<String, String>();
         storyObj.put("name", story.name);
         storyObj.put("content", story.content);
+        storyObj.put("date", story.date);
         storyObj.put("latitude", Double.toString(story.location.latitude));
         storyObj.put("longitude", Double.toString(story.location.longitude));
         storyObj.put("author", story.author);
@@ -827,6 +846,7 @@ public class MainActivity extends FragmentActivity implements
         viewStoryIntent.putExtra(Constants.EXTRA_STORY_NAME, story.name);
         viewStoryIntent.putExtra(Constants.EXTRA_STORY_CONTENT, story.content);
         viewStoryIntent.putExtra(Constants.EXTRA_STORY_AUTHOR, story.author);
+        viewStoryIntent.putExtra(Constants.EXTRA_STORY_DATE, story.date);
         viewStoryIntent.putExtra(Constants.EXTRA_CURRENT_USER, currentUser.getUsername());
         Log.d(TAG, "right before viewStoryScreeen storyList has "+storyList.size()+" items");
         startActivityForResult(viewStoryIntent, 1);
@@ -909,6 +929,8 @@ public class MainActivity extends FragmentActivity implements
             Story story = new Story();
             story.name = name;
             story.content = content;
+            SimpleDateFormat s = new SimpleDateFormat("MMMM dd, yyyy", Locale.US);
+            story.date = s.format(new Date());
             story.location = new LatLng(mCurrentLocation.getLatitude(),
                     mCurrentLocation.getLongitude());
             story.radius = Constants.GEOFENCE_RADIUS_IN_METERS;

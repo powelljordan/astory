@@ -11,10 +11,12 @@ public class DBStory {
     private String name;
     private String content;
     private String author;
+    private String date;
     private String latitude;
     private String longitude;
     private String mediaUri;
     private String mediaType;
+    private String mediaUpdated;
     public DBStory(){
 
     }
@@ -28,6 +30,10 @@ public class DBStory {
     }
 
     public String getAuthor(){return author;}
+
+    public String getDate(){
+        return date;
+    }
 
     public String getLatitude(){
         return latitude;
@@ -43,5 +49,9 @@ public class DBStory {
 
     public String getMediaType(){
         return mediaType;
+    }
+
+    public String getMediaUpdated(){
+        return mediaUpdated;
     }
 }

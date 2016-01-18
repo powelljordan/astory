@@ -24,7 +24,8 @@ public final class Constants {
 
     public static final float GEOFENCE_RADIUS_IN_METERS = 35;
 
-    public static final long UPDATE_INTERVAL_IN_MILLISECONDS = 10000;
+    public static final long UPDATE_INTERVAL_IN_MILLISECONDS = 7000;
+    public static final long INACTIVE_UPDATE_INTERVAL_IN_MILLISECONDS = 2*60*1000;
 
     /**
      * The fastest rate for active location updates. Exact. Updates will never be more frequent
@@ -61,6 +62,7 @@ public final class Constants {
     public final static String EXTRA_STORY_CONTENT = "jordan.astory.STORY_CONTENT";
     public final static String EXTRA_STORY_NAME = "jordan.astory.STORY_NAME";
     public final static String EXTRA_STORY_AUTHOR = "jordan.astory.STORY_AUTHOR";
+    public final static String EXTRA_STORY_DATE = "jordan.astory.STORY_DATE";
     public final static String EXTRA_CURRENT_USER = "jordan.astory.CURRENT_USER";
     public final static String VIEW_STORY_KEY = "jordan.astory.STORY_KEY";
     public final static String EXTRA_STORY_COMMENT = "jordan.astory.STORY_COMMENT";

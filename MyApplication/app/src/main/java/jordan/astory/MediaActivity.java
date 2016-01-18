@@ -15,6 +15,8 @@ import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
+import android.view.Window;
+import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -63,6 +65,7 @@ public class MediaActivity extends Activity {
     private URL fileURL;
     private String uriType;
     private static File mediaFile;
+    private String mediaType;
     private ImageView imgPreview;
     private VideoView videoPreview;
     private WebView webView;
@@ -76,11 +79,11 @@ public class MediaActivity extends Activity {
     private String storyAuthor;
 
     private Uri.Builder builder;
-    private URL onlineUrl;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        getWindow().requestFeature(Window.FEATURE_PROGRESS);
         setContentView(R.layout.camera_layout);
         storiesDB = new Firebase("https://astory.firebaseio.com/stories");
         Intent intent = getIntent();
@@ -93,6 +96,12 @@ public class MediaActivity extends Activity {
         videoPreview = (VideoView) findViewById(R.id.videoPreview);
         btnCapturePicture = (Button) findViewById(R.id.btnCapturePicture);
         btnRecordVideo = (Button) findViewById(R.id.btnRecordVideo);
+        CognitoCachingCredentialsProvider credentialsProvider = new CognitoCachingCredentialsProvider(
+                getApplicationContext(), // get the context for the current activity
+                Constants.IDENTITY_POOL_ID, // your identity pool id
+                Regions.US_EAST_1 //Region
+        );
+        s3 = new AmazonS3Client(credentialsProvider);
 
         /**
          * Capture image button click event
@@ -129,10 +138,7 @@ public class MediaActivity extends Activity {
     }
 
     private void handleCaptureButtons(Intent intent){
-//        Log.d(TAG, "currentUser: " +  currentUser);
-//        Log.d(TAG, "storyAuthor: " + storyAuthor);
         if(currentUser.equals(storyAuthor)){
-//            Log.d(TAG, "current user is the author");
             mediaButtons = (LinearLayout) findViewById(R.id.media_buttons);
             mediaButtons.setVisibility(View.VISIBLE);
         }
@@ -141,18 +147,32 @@ public class MediaActivity extends Activity {
                     @Override
                     public void onDataChange(DataSnapshot dataSnapshot) {
                         DBStory dbStory = dataSnapshot.getValue(DBStory.class);
-                        if (dbStory != null && dbStory.getMediaUri() != null) {
+                        if (dbStory != null && dbStory.getMediaUri() != null && mediaUpToDate(dbStory)) {
                             try {
                                 fileURL = new URL(dbStory.getMediaUri());
                             } catch (MalformedURLException e) {
                                 e.printStackTrace();
                             }
-                            String mediaType = dbStory.getMediaType();
+                            mediaType = dbStory.getMediaType();
                             if (mediaType.equals("image")) {
                                 loadMedia(fileURL);
-                            } else if (mediaType.equals("video")) {
+
+                            }
+                            else if (mediaType.equals("video")){
                                 loadMedia(fileURL);
                             }
+                        }
+                        else if(dbStory != null && dbStory.getMediaType()!=null&& !mediaUpToDate(dbStory)){
+                            mediaType = dbStory.getMediaType();
+                            if(dbStory.getMediaType().equals("image")){
+                                new getUri().execute("image/jpeg");
+                                storiesDB.child(storyName).child("mediaUpdated").setValue(System.currentTimeMillis());
+                            }
+                            else if(dbStory.getMediaType().equals("video")){
+                                new getUri().execute("video/mp4");
+                                storiesDB.child(storyName).child("mediaUpdated").setValue(System.currentTimeMillis());
+                            }
+
                         }
                     }
 
@@ -240,13 +260,10 @@ public class MediaActivity extends Activity {
             if (resultCode == RESULT_OK) {
                 // successfully captured the image
                 // display it in image view
-
-                MediaStorage mStore = new MediaStorage(getApplicationContext(),
-                        mediaFile
-                        , storyName);
                 new UploadMedia().execute();
+                mediaType = "image";
+                storiesDB.child(storyName).child("mediaUpdated").setValue(System.currentTimeMillis());
                 new getUri().execute("image/jpeg");
-                Log.d(TAG, "onlineURL: " + onlineUrl);
             } else if (resultCode == RESULT_CANCELED) {
                 // user cancelled Image capture
                 Toast.makeText(getApplicationContext(),
@@ -262,13 +279,10 @@ public class MediaActivity extends Activity {
             if (resultCode == RESULT_OK) {
                 // video successfully recorded
                 // preview the recorded video
-                MediaStorage mStore = new MediaStorage(getApplicationContext(),
-                        mediaFile
-                        , storyName);
-                mStore.setup();
                 new UploadMedia().execute();
+                mediaType = "video";
+                storiesDB.child(storyName).child("mediaUpdated").setValue(System.currentTimeMillis());
                 new getUri().execute("video/mp4");
-                previewVideo();
             } else if (resultCode == RESULT_CANCELED) {
                 // user cancelled recording
                 Toast.makeText(getApplicationContext(),
@@ -281,6 +295,8 @@ public class MediaActivity extends Activity {
                         .show();
             }
         }
+        Toast.makeText(getApplicationContext(), "Your story has been added", Toast.LENGTH_SHORT);
+        finish();
     }
 
     /**
@@ -305,7 +321,6 @@ public class MediaActivity extends Activity {
                     options);
 
             imgPreview.setImageBitmap(bitmap);
-            syncToFirebase("image");
         } catch (NullPointerException e) {
             e.printStackTrace();
         }
@@ -393,6 +408,18 @@ public class MediaActivity extends Activity {
 
     }
 
+    public boolean mediaUpToDate(DBStory story){
+        if(story.getMediaUpdated() == null){
+            return false;
+        }
+        else{
+            if((System.currentTimeMillis() - Double.parseDouble(story.getMediaUpdated())) < 59*60*1000){
+                return true;
+            }else{
+                return false;
+            }
+        }
+    }
     public void syncToFirebase(String uriType){
         Log.d(TAG, "syncToFirebase called");
         storiesDB.child(storyName).child("mediaType").setValue(uriType);
@@ -403,7 +430,10 @@ public class MediaActivity extends Activity {
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setUseWideViewPort(true);
         webView.getSettings().setLoadWithOverviewMode(true);
+        syncToFirebase(mediaType);
         webView.loadUrl(result.toString());
+
+
     }
 
     private AmazonS3 s3;
@@ -442,12 +472,9 @@ public class MediaActivity extends Activity {
             ResponseHeaderOverrides override = new ResponseHeaderOverrides();
             override.setContentType(types[0]);
             GeneratePresignedUrlRequest urlRequest = new GeneratePresignedUrlRequest( MY_BUCKET, storyName);
-            urlRequest.setExpiration( new Date( System.currentTimeMillis() + 3600000 ) );  // Added an hour's worth of milliseconds to the current time.
+            urlRequest.setExpiration(new Date(System.currentTimeMillis() + 7*24*60*60*1000 ) );  // Added a week's worth of milliseconds to the current time.
             urlRequest.setResponseHeaders(override);
             URL url = s3.generatePresignedUrl(urlRequest);
-            onlineUrl = url;
-            Log.d(TAG, "Actually got the url: " + url);
-            Log.d(TAG, "Right after method uri: " + fileUri);
             return url;
         }
 
@@ -456,7 +483,7 @@ public class MediaActivity extends Activity {
             fileURL = result;
             Log.d(TAG, result.toString());
             loadMedia(result);
-            previewCapturedImage();
+//            previewCapturedImage();
         }
     }
 }

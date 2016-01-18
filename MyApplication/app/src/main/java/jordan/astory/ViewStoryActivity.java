@@ -33,6 +33,7 @@ public class ViewStoryActivity extends AppCompatActivity {
     private String name;
     private String content;
     private String author;
+    private String date;
     private String currentUser;
     private Uri mediaUri;
     private ImageButton deleteButton;
@@ -52,6 +53,7 @@ public class ViewStoryActivity extends AppCompatActivity {
         name = intent.getStringExtra(Constants.EXTRA_STORY_NAME);
         content = intent.getStringExtra(Constants.EXTRA_STORY_CONTENT);
         author = intent.getStringExtra(Constants.EXTRA_STORY_AUTHOR);
+        date = intent.getStringExtra(Constants.EXTRA_STORY_DATE);
         currentUser = intent.getStringExtra(Constants.EXTRA_CURRENT_USER);
         Log.d(TAG, "author: " + author);
 
@@ -65,9 +67,11 @@ public class ViewStoryActivity extends AppCompatActivity {
         TextView nameText = (TextView) findViewById(R.id.view_story_name);
         TextView contentText = (TextView) findViewById(R.id.view_story_content);
         TextView authorText = (TextView) findViewById(R.id.view_story_author);
+        TextView dateText = (TextView) findViewById(R.id.view_story_date);
         authorText.setText(author);
         nameText.setText(name);
         contentText.setText(content);
+        dateText.setText(date);
 
         Log.d(TAG, "currentUser: " + currentUser);
         Log.d(TAG, "author: " + author);
@@ -113,6 +117,7 @@ public class ViewStoryActivity extends AppCompatActivity {
         mediaIntent.putExtra(Constants.EXTRA_CURRENT_USER, currentUser);
         mediaIntent.putExtra(Constants.EXTRA_STORY_AUTHOR, author);
         startActivityForResult(mediaIntent, Constants.MEDIA_REQUEST_CODE);
+        finish();
     }
 
 

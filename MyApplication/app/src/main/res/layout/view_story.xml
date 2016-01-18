@@ -50,10 +50,16 @@
         android:textSize="40dp"
         android:textAppearance="?android:attr/textAppearanceLarge"
         android:id="@+id/view_story_name" />
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="January 17, 2016"
+        android:id="@+id/view_story_date"/>
 
 
     <TextView
-        android:paddingTop="35dp"
+        android:paddingTop="20dp"
         android:paddingLeft="20dp"
         android:paddingRight="20dp"
         android:layout_width="wrap_content"

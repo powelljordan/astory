@@ -24,6 +24,8 @@ import java.util.List;
 public class GeofenceTransitionsIntentService extends IntentService {
     protected static final String TAG = "GeofenceTransitionsIS";
     protected static ArrayList<Geofence> activeGeofences;
+    protected static ArrayList<Geofence> oldGeofences;
+    public static boolean notify = true;
 
     /**
      * This constructor is required, and calls the super IntentService(String)
@@ -61,7 +63,8 @@ public class GeofenceTransitionsIntentService extends IntentService {
 
         // Test that the reported transition was of interest.
         if (geofenceTransition == Geofence.GEOFENCE_TRANSITION_ENTER ||
-                geofenceTransition == Geofence.GEOFENCE_TRANSITION_EXIT) {
+                geofenceTransition == Geofence.GEOFENCE_TRANSITION_EXIT ||
+                    geofenceTransition == Geofence.GEOFENCE_TRANSITION_DWELL) {
 
             // Get the geofences that were triggered. A single event can trigger multiple geofences.
             List<Geofence> triggeringGeofences = geofencingEvent.getTriggeringGeofences();
@@ -75,6 +78,7 @@ public class GeofenceTransitionsIntentService extends IntentService {
             messageIntent.putExtra("DATAPASSED", geofenceNames);
 
             sendBroadcast(messageIntent);
+
             activeGeofences = (ArrayList)triggeringGeofences;
 
             // Get the transition details as a String.
@@ -85,7 +89,16 @@ public class GeofenceTransitionsIntentService extends IntentService {
             );
 
             // Send notification and log the transition details.
-//            sendNotification(geofenceTransitionDetails);
+//            if(triggeringGeofences != null){
+//                oldGeofences = new ArrayList<>();
+//                for(Geofence g: triggeringGeofences){
+//                    oldGeofences.add(g);
+//                }
+//            }
+            Log.d(TAG, "notify: "+notify);
+            if(notify && geofenceTransition == Geofence.GEOFENCE_TRANSITION_ENTER) {
+                sendNotification("There are stories near you!");
+            }
             Log.i(TAG, geofenceTransitionDetails);
         } else {
             // Log the error.
