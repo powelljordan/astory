@@ -54,4 +54,9 @@ public class DBStory {
     public String getMediaUpdated(){
         return mediaUpdated;
     }
+
+    @Override
+    public String toString(){
+        return name;
+    }
 }

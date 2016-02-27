@@ -3,6 +3,8 @@ package jordan.astory;
 /**
  * Created by Jordan on 12/28/2015.
  */
+import android.app.DatePickerDialog;
+import android.app.Dialog;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -21,6 +23,7 @@ import android.view.MenuItem;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.DatePicker;
 import android.widget.Toast;
 
 import com.firebase.client.ChildEventListener;
@@ -57,12 +60,14 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -109,11 +114,33 @@ public class MainActivity extends FragmentActivity implements
     private Firebase rootRef;
     private Firebase storiesDB;
     private Firebase commentsDB;
+    private Firebase masterRootRef;
+    private Firebase masterStoriesDB;
+    private Firebase masterCommentsDB;
+    private Firebase usersDB;
+    String today;
+    Firebase todayRootRef;
     private GeoFire geoFire;
+    private GeoFire masterGeoFire;
+    private GeoFire todayGeoFire;
     private GeoQuery geoQuery;
+    private GeoQuery masterGeoQuery;
+    private GeoQuery todayGeoQuery;
 
     public String currentUserID;
+    public List<String> currentUserStories;
+    private String date;
+    private int year;
+    private int month;
+    private int day;
+
+    static final int DATE_DIALOG_ID = 999;
     public static DBUser currentUser;
+
+    private DatePicker dpResult;
+    private Button calendarButton;
+    private Button allStoriesButton;
+    private boolean initiallyLoadedStories = false;
 
     /**
      * Stores paramenters for requests to the FusedLocationProviderApi
@@ -125,18 +152,23 @@ public class MainActivity extends FragmentActivity implements
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Firebase.setAndroidContext(this);
-        rootRef = new Firebase("https://astory.firebaseio.com/");
-        storiesDB = rootRef.child("stories");
-        commentsDB = rootRef.child("comments");
-        geoFire = new GeoFire(new Firebase("https://astory.firebaseio.com/geoStories"));
-        geoQuery = geoFire.queryAtLocation(new GeoLocation(0,0), Constants.STORY_QUERY_RADIUS);
+        currentUserStories = new ArrayList<String>();
+        date = "";
+        SimpleDateFormat s = new SimpleDateFormat("MM-dd-yyyy", Locale.US);
+        today = s.format(new Date());
+        Log.d(TAG, "date: " + date);
 
         setContentView(R.layout.activity_main);
-//        mAddGeofencesButton = (Button) findViewById(R.id.myFAB);
 
-//
+        //Calendar filter stuff
+        setCurrentDateOnView();
+        addCalendarButtonListener();
+        addAllStoriesButtonListener();
+
+
         mGeofenceList = new ArrayList<Geofence>();
         storyList = new ArrayList<Story>();
+        handleDatabase(date);
 
         mGeofencePendingIntent = null;
 
@@ -172,10 +204,15 @@ public class MainActivity extends FragmentActivity implements
         if(currentUserID.equals("N/A")){
             Log.e(TAG, "User has not logged in and is not in Shared Preferences");
         }
-        rootRef.child("users").child(currentUserID).addValueEventListener(new ValueEventListener() {
+        Firebase usersDB = new Firebase("https://astory.firebaseio.com/users");
+        usersDB.child(currentUserID).addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
                 currentUser = dataSnapshot.getValue(DBUser.class);
+                if(currentUser.getStories() != null){
+//                    currentUserStories = currentUser.getStories();
+                }
+
 //                Log.d(TAG, "currentUser: " + currentUser);
             }
 
@@ -276,6 +313,7 @@ public class MainActivity extends FragmentActivity implements
                             Log.d(TAG, dbStory.getName());
                             story.name = dbStory.getName();
                             story.content = dbStory.getContent();
+                            story.date = dbStory.getDate();
                             story.location = new LatLng(Double.parseDouble(dbStory.getLatitude()), Double.parseDouble(dbStory.getLongitude()));
                             story.radius = Constants.GEOFENCE_RADIUS_IN_METERS;
                             story.author = dbStory.getAuthor();
@@ -348,17 +386,23 @@ public class MainActivity extends FragmentActivity implements
     public void onResume(){
         super.onResume();
         if(mGoogleApiClient.isConnected() && mRequestingLocationUpdates){
+            GeofenceTransitionsIntentService.notify = false;
+            mLocationRequest.setInterval(Constants.UPDATE_INTERVAL_IN_MILLISECONDS);
+            stopLocationUpdates();
+            startLocationUpdates();
+
 //            startLocationUpdates();
+
         }
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-//        for(int i = 0; i < storyList.size(); i++){
-//            Story story = storyList.get(i);
-//            removeStoryFromDevice(story);
-//        }
+        for(int i = 0; i < storyList.size(); i++){
+            Story story = storyList.get(i);
+            removeStoryFromDevice(story);
+        }
 //        mGoogleApiClient.disconnect();
         geoQuery.removeAllListeners();
         unregisterReceiver(myReceiver);
@@ -455,36 +499,6 @@ public class MainActivity extends FragmentActivity implements
         return builder.build();
     }
 
-    /**
-     * Adds geofences, which sets alerts to be notified when the device enters or exits one of the
-     * specified geofences. Handles the success or failure results returned by addGeofences().
-     */
-//    public void addGeofencesButtonHandler(View view) {
-//        if (!mGoogleApiClient.isConnected()) {
-//            Toast.makeText(this, getString(R.string.not_connected), Toast.LENGTH_SHORT).show();
-//            return;
-//        }
-//        if(mGeofenceList.size() > 0) {
-//            try {
-//                LocationServices.GeofencingApi.addGeofences(
-//                        mGoogleApiClient,
-//                        // The GeofenceRequest object.
-//
-//                        getGeofencingRequest(),
-//                        // A pending intent that that is reused when calling removeGeofences(). This
-//                        // pending intent is used to generate an intent when a matched geofence
-//                        // transition is observed.
-//                        getGeofencePendingIntent()
-//                ).setResultCallback(this); // Result processed in onResult().
-//                Log.d(TAG, "callsGeofencingRequest()");
-//                mGeofenceList = new ArrayList<Geofence>();
-//                storyList = new ArrayList<Story>();
-//            } catch (SecurityException securityException) {
-//                // Catch exception generated if the app does not use ACCESS_FINE_LOCATION permission.
-//                logSecurityException(securityException);
-//            }
-//        }
-//    }
 
     public void addStoryGeofence(){
         if (!mGoogleApiClient.isConnected()) {
@@ -686,7 +700,7 @@ public class MainActivity extends FragmentActivity implements
 
                             // Create the geofence.
                     .build());
-
+            Log.d(TAG, "add story to geofence list called");
 //            Log.d(TAG, "Geofence list has : " + mGeofenceList.size() + " items");
             for(Geofence geo: mGeofenceList){
 //                Log.d(TAG, "item " + geo.getRequestId());
@@ -711,8 +725,19 @@ public class MainActivity extends FragmentActivity implements
         storyObj.put("author", story.author);
 //        Log.d(TAG, "addStoryToDB is in fact getting called");
         Firebase storyRef = storiesDB.child(story.name);
-        Firebase userRef = new Firebase("https://astory.firebaseio.com/users");
+        Firebase userRef = usersDB.child(currentUserID);
+        Log.d(TAG, "currentUserStories" + currentUserStories);
+        currentUserStories.add(story.name);
+        userRef.child("stories").child(story.name).setValue(storyObj);
         storyRef.setValue(storyObj);
+        Log.d(TAG, "Date's broken. It equals " + date);
+        if(!date.equals("")) {
+            masterRootRef.child("stories").child(story.name).setValue(storyObj);
+            masterGeoFire.setLocation(story.name, new GeoLocation(story.location.latitude, story.location.longitude));
+        }else{
+            todayRootRef.child("stories").child(story.name).setValue(storyObj);
+            todayGeoFire.setLocation(story.name,new GeoLocation(story.location.latitude, story.location.longitude));
+        }
         geoFire.setLocation(story.name, new GeoLocation(story.location.latitude, story.location.longitude));
     }
 
@@ -723,19 +748,28 @@ public class MainActivity extends FragmentActivity implements
         removeStoryGeofence(story);
         mGeofenceList.remove(story);
 //        Log.d(TAG, "storyList: " + storyList);
-        storiesDB.child(story.name).removeValue();
-        commentsDB.child(story.name).removeValue();
-        geoFire.removeLocation(story.name);
+//        storiesDB.child(story.name).removeValue();
+//        commentsDB.child(story.name).removeValue();
+        if(!date.equals("")){
+            masterStoriesDB.child(story.name).removeValue();
+            masterGeoFire.removeLocation(story.name);
+        }else{
+            todayRootRef.child("stories").child(story.name).removeValue();
+            todayGeoFire.removeLocation(story.name);
+        }
+        Firebase userRef = usersDB.child(currentUserID);
+        userRef.child(story.name).removeValue();
         storyList.remove(story);
 //        mMap.clear();
     }
 
     public void removeStoryFromDevice(Story story){
-        Log.d(TAG, "removeStoryFromDevice");
+//        Log.d(TAG, "removeStoryFromDevice");
         story.marker.remove();
         removeStoryGeofence(story);
         mGeofenceList.remove(story);
         storyList.remove(story);
+        Log.d(TAG, "within removeStoryFromDevice: " + story.name);
     }
 
     public void addStoryToDevice(Story story){
@@ -772,6 +806,7 @@ public class MainActivity extends FragmentActivity implements
 //                Log.d(TAG, "item " + geo.getRequestId());
             }
             story.geofence = mGeofenceList.get(0);
+            Log.d(TAG, "add stories to device called");
             Marker storyMarker = mMap.addMarker(new MarkerOptions().position(story.location).title(story.name));
 //        addMarkerListener();
             story.marker = storyMarker;
@@ -828,6 +863,7 @@ public class MainActivity extends FragmentActivity implements
                 for (Story story : storyList) {
                     if (story.marker.equals(marker)) {
                         if (story.active) {
+                            Log.d(TAG, "within marker listener "+story.date);
                             goToViewStoryScreen(story);
                             return true;
                         } else {
@@ -847,10 +883,12 @@ public class MainActivity extends FragmentActivity implements
         viewStoryIntent.putExtra(Constants.EXTRA_STORY_CONTENT, story.content);
         viewStoryIntent.putExtra(Constants.EXTRA_STORY_AUTHOR, story.author);
         viewStoryIntent.putExtra(Constants.EXTRA_STORY_DATE, story.date);
+        Log.d(TAG, "Main Activity date: " + story.date);
+        viewStoryIntent.putExtra(Constants.EXTRA_STORY_DATE_KEY, date);
         viewStoryIntent.putExtra(Constants.EXTRA_CURRENT_USER, currentUser.getUsername());
-        Log.d(TAG, "right before viewStoryScreeen storyList has "+storyList.size()+" items");
+        Log.d(TAG, "right before viewStoryScreeen storyList has " + storyList.size() + " items");
         startActivityForResult(viewStoryIntent, 1);
-        Log.d(TAG, "right after viewStoryScreen storyList has "+storyList.size()+" items");
+        Log.d(TAG, "right after viewStoryScreen storyList has " + storyList.size() + " items");
     }
 
     public void goToLoginScreen(){
@@ -859,7 +897,7 @@ public class MainActivity extends FragmentActivity implements
     }
 
     public void logout(View v){
-        rootRef.unauth();
+        masterRootRef.unauth();
         goToLoginScreen();
 
     }
@@ -896,10 +934,14 @@ public class MainActivity extends FragmentActivity implements
                 editor.apply();
 
 //                Log.d(TAG, "currentUserID: " + currentUserID);
-                rootRef.child("users").child(currentUserID).addValueEventListener(new ValueEventListener() {
+                Firebase usersDB = new Firebase("https:astory.firebaseio.com/users");
+                usersDB.child(currentUserID).addValueEventListener(new ValueEventListener() {
                     @Override
                     public void onDataChange(DataSnapshot dataSnapshot) {
                         currentUser = dataSnapshot.getValue(DBUser.class);
+                        if(currentUser.getStories() != null){
+//                            currentUserStories = currentUser.getStories();
+                        }
 //                        Log.d(TAG, "currentUser: " +currentUser);
                     }
 
@@ -937,10 +979,10 @@ public class MainActivity extends FragmentActivity implements
 //            Log.d(TAG, currentUser.toString());
             story.author = currentUser.getUsername();
             addStoryToGeofenceList(story);
-            addStoryGeofence();
+        addStoryGeofence();
 //            Log.d(TAG, "Definitely calls onFinishedInputDialog");
-            goToViewStoryScreen(story);
-            startLocationUpdates();
+        goToViewStoryScreen(story);
+        startLocationUpdates();
         }
 
     public void showDialog(View v){
@@ -982,6 +1024,115 @@ public class MainActivity extends FragmentActivity implements
                 }
             }
         }
+    }
+
+    public void setCurrentDateOnView(){
+        dpResult = (DatePicker) findViewById(R.id.dpResult);
+        final Calendar c = Calendar.getInstance();
+        year = c.get(Calendar.YEAR);
+        month = c.get(Calendar.MONTH);
+        day = c.get(Calendar.DAY_OF_MONTH);
+        dpResult.init(year, month, day, null);
+    }
+
+    public void addCalendarButtonListener(){
+        calendarButton = (Button) findViewById(R.id.calendar_button);
+        calendarButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                showDialog(DATE_DIALOG_ID);
+            }
+        });
+
+    }
+
+    public void addAllStoriesButtonListener(){
+        allStoriesButton = (Button) findViewById(R.id.all_stories_button);
+        allStoriesButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                handleDatabase("");
+            }
+        });
+    }
+
+    @Override
+    protected Dialog onCreateDialog(int id) {
+        switch (id) {
+            case DATE_DIALOG_ID:
+                // set date picker as current date
+                return new DatePickerDialog(this, datePickerListener,
+                        year, month,day);
+        }
+        return null;
+    }
+
+    private DatePickerDialog.OnDateSetListener datePickerListener
+            = new DatePickerDialog.OnDateSetListener() {
+
+        // when dialog box is closed, below method will be called.
+        public void onDateSet(DatePicker view, int selectedYear,
+                              int selectedMonth, int selectedDay) {
+            year = selectedYear;
+            month = selectedMonth;
+            day = selectedDay;
+            Calendar calendar = Calendar.getInstance();
+            calendar.set(year, month, day);
+            SimpleDateFormat format = new SimpleDateFormat("MM-dd-yyyy");
+            String strDate = format.format(calendar.getTime());
+            date = strDate;
+            handleDatabase(date);
+            SimpleDateFormat s1 = new SimpleDateFormat("MM-dd-yyyy", Locale.US);
+            Date d = new Date();
+            try {
+                d = s1.parse(strDate);
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
+
+            SimpleDateFormat s2 = new SimpleDateFormat("MMMM dd, yyyy", Locale.US);
+            String storyDate = s2.format(d);
+            Toast.makeText(getApplicationContext(), "Showing stories from "+storyDate, Toast.LENGTH_LONG).show();
+//            Log.d(TAG, "strDate: " + date);
+
+
+            // set selected date into datepicker also
+            dpResult.init(year, month, day, null);
+
+        }
+    };
+
+    public void handleDatabase(String date){
+//        Log.d(TAG, "handleDatabase date: " + date);
+        for(int i= 0; i<storyList.size(); i++){
+            Log.d(TAG, "i: " + i);
+            Story s = storyList.get(i);
+            removeStoryFromDevice(s);
+            mMap.clear();
+        }
+        rootRef = new Firebase("https://astory.firebaseio.com/"+date);
+        storiesDB = rootRef.child("stories");
+        commentsDB = rootRef.child("comments");
+        usersDB = rootRef.child("users");
+        masterRootRef = new Firebase("https://astory.firebaseio.com");
+        masterStoriesDB = masterRootRef.child("stories");
+        masterCommentsDB = masterRootRef.child("comments");
+        Log.d(TAG, "today at todayRootRef = "+today);
+        todayRootRef = new Firebase("https://astory.firebaseio.com/"+today);
+        geoFire = new GeoFire(rootRef.child("geoStories"));
+        masterGeoFire = new GeoFire(masterRootRef.child("geoStories"));
+        todayGeoFire = new GeoFire(todayRootRef.child("geoStories"));
+        geoQuery = geoFire.queryAtLocation(new GeoLocation(0, 0), Constants.STORY_QUERY_RADIUS);
+
+        if(initiallyLoadedStories) {
+            geoQuery.removeAllListeners();
+            geoQuery.addGeoQueryEventListener(this);
+            stopLocationUpdates();
+            startLocationUpdates();
+        }else{
+            initiallyLoadedStories = true;
+        }
+
     }
 
     public void onSaveInstanceState(Bundle savedInstanceState){

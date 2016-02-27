@@ -44,6 +44,7 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -71,12 +72,18 @@ public class MediaActivity extends Activity {
     private WebView webView;
     private Button btnCapturePicture, btnRecordVideo;
     private LinearLayout mediaButtons;
+    private Firebase rootRef;
     private Firebase storiesDB;
+    private Firebase masterRootRef;
+    private Firebase masterStoriesDB;
+    String today;
 
     private final String TAG = "MediaActivity";
     private String storyName;
     private String currentUser;
     private String storyAuthor;
+    private String date;
+    private String postDate;
 
     private Uri.Builder builder;
 
@@ -85,12 +92,32 @@ public class MediaActivity extends Activity {
         super.onCreate(savedInstanceState);
         getWindow().requestFeature(Window.FEATURE_PROGRESS);
         setContentView(R.layout.camera_layout);
-        storiesDB = new Firebase("https://astory.firebaseio.com/stories");
+
+        //Get Extras
         Intent intent = getIntent();
         storyName = intent.getStringExtra(Constants.MEDIA_STORY_NAME);
         storyAuthor = intent.getStringExtra(Constants.EXTRA_STORY_AUTHOR);
         currentUser = intent.getStringExtra(Constants.EXTRA_CURRENT_USER);
+        date = intent.getStringExtra(Constants.EXTRA_STORY_DATE_KEY);
+        postDate = intent.getStringExtra(Constants.EXTRA_STORY_DATE);
+
+
+        //Parse Date
+        SimpleDateFormat s = new SimpleDateFormat("MMMM dd, yyyy", Locale.US);
+        Date d = new Date();
+        if(postDate != null) {
+            try {
+                d = s.parse(postDate);
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
+        }
+        SimpleDateFormat s2 = new SimpleDateFormat("MM-dd-yyyy", Locale.US);
+        today = s2.format(d);
+        handleDatabase(date);
         handleCaptureButtons(intent);
+
+        //Setup views
         webView = (WebView) findViewById(R.id.media_web_view);
         imgPreview = (ImageView) findViewById(R.id.imgPreview);
         videoPreview = (VideoView) findViewById(R.id.videoPreview);
@@ -137,6 +164,28 @@ public class MediaActivity extends Activity {
         }
     }
 
+    /**
+     * Stories are stored by date they were posted to facilitate easy filtering
+     * Ensures that data is being loaded from the correct database based on the date provided
+     * @param date
+     */
+    public void handleDatabase(String date){
+        Log.d(TAG, "handleDatabase date is "+date);
+        rootRef = new Firebase("https://astory.firebaseio.com/"+date);
+        storiesDB = rootRef.child("stories");
+        if(!date.equals("")){
+            masterRootRef = new Firebase("https://astory.firebaseio.com/");
+            masterStoriesDB = masterRootRef.child("stories");
+        }else{
+            masterRootRef = new Firebase("https://astory.firebaseio.com/"+today);
+            masterStoriesDB = masterRootRef.child("stories");
+        }
+    }
+
+    /**
+     * Handles setting up capture buttons and finding media associated with the story
+     * @param intent
+     */
     private void handleCaptureButtons(Intent intent){
         if(currentUser.equals(storyAuthor)){
             mediaButtons = (LinearLayout) findViewById(R.id.media_buttons);
@@ -148,6 +197,7 @@ public class MediaActivity extends Activity {
                     public void onDataChange(DataSnapshot dataSnapshot) {
                         DBStory dbStory = dataSnapshot.getValue(DBStory.class);
                         if (dbStory != null && dbStory.getMediaUri() != null && mediaUpToDate(dbStory)) {
+                            Log.d(TAG, "Really? All these things are true");
                             try {
                                 fileURL = new URL(dbStory.getMediaUri());
                             } catch (MalformedURLException e) {
@@ -167,10 +217,16 @@ public class MediaActivity extends Activity {
                             if(dbStory.getMediaType().equals("image")){
                                 new getUri().execute("image/jpeg");
                                 storiesDB.child(storyName).child("mediaUpdated").setValue(System.currentTimeMillis());
-                            }
-                            else if(dbStory.getMediaType().equals("video")){
+                                if(postDate != null) {
+                                    masterStoriesDB.child(storyName).child("mediaUpdated").setValue(System.currentTimeMillis());
+
+                                }
+                            }else if(dbStory.getMediaType().equals("video")){
                                 new getUri().execute("video/mp4");
                                 storiesDB.child(storyName).child("mediaUpdated").setValue(System.currentTimeMillis());
+                                if(postDate != null) {
+                                    masterStoriesDB.child(storyName).child("mediaUpdated").setValue(System.currentTimeMillis());
+                                }
                             }
 
                         }
@@ -263,6 +319,9 @@ public class MediaActivity extends Activity {
                 new UploadMedia().execute();
                 mediaType = "image";
                 storiesDB.child(storyName).child("mediaUpdated").setValue(System.currentTimeMillis());
+                if(postDate != null) {
+                    masterStoriesDB.child(storyName).child("mediaUpdated").setValue(System.currentTimeMillis());
+                }
                 new getUri().execute("image/jpeg");
             } else if (resultCode == RESULT_CANCELED) {
                 // user cancelled Image capture
@@ -282,6 +341,9 @@ public class MediaActivity extends Activity {
                 new UploadMedia().execute();
                 mediaType = "video";
                 storiesDB.child(storyName).child("mediaUpdated").setValue(System.currentTimeMillis());
+                if(postDate != null) {
+                    masterStoriesDB.child(storyName).child("mediaUpdated").setValue(System.currentTimeMillis());
+                }
                 new getUri().execute("video/mp4");
             } else if (resultCode == RESULT_CANCELED) {
                 // user cancelled recording
@@ -414,6 +476,7 @@ public class MediaActivity extends Activity {
         }
         else{
             if((System.currentTimeMillis() - Double.parseDouble(story.getMediaUpdated())) < 59*60*1000){
+                Log.d(TAG, "last updated "+(System.currentTimeMillis() - Double.parseDouble(story.getMediaUpdated())));
                 return true;
             }else{
                 return false;
@@ -424,6 +487,12 @@ public class MediaActivity extends Activity {
         Log.d(TAG, "syncToFirebase called");
         storiesDB.child(storyName).child("mediaType").setValue(uriType);
         storiesDB.child(storyName).child("mediaUri").setValue(fileURL);
+        if(postDate != null){
+            masterStoriesDB.child(storyName).child("mediaType").setValue(uriType);
+            masterStoriesDB.child(storyName).child("mediaUri").setValue(fileURL);
+        }
+
+
     }
 
     public void loadMedia(URL result){

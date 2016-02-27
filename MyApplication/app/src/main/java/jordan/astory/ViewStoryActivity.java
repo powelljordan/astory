@@ -15,6 +15,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -23,6 +24,11 @@ import com.google.android.gms.location.Geofence;
 import com.google.android.gms.location.GeofencingRequest;
 
 import org.w3c.dom.Text;
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 /**
  * Created by Jordan on 12/30/2015.
@@ -34,13 +40,19 @@ public class ViewStoryActivity extends AppCompatActivity {
     private String content;
     private String author;
     private String date;
+    private String dateKey;
     private String currentUser;
     private Uri mediaUri;
     private ImageButton deleteButton;
-    private Firebase usersDB = new Firebase("https://astory.firebaseio.com/users");
-    private Firebase storiesDB = new Firebase("https://astory.firebaseio.com/stories");
-    private Firebase geoStoriesDB = new Firebase("https://astory.firebasio.com/geoStories");
-    private Firebase commentsDB = new Firebase("https://astory.firebasio.com/comments");
+    private ImageView profile;
+    private Firebase rootRef;
+    private Firebase storiesDB;
+    private Firebase geoStoriesDB;
+    private Firebase commentsDB;
+    private Firebase masterRootRef;
+    private Firebase masterStoriesDB;
+    private Firebase masterGeoStoriesDB;
+    private Firebase masterCommentsDB;
     private String TAG = "ViewStoryActivity";
 
     @Override
@@ -55,6 +67,9 @@ public class ViewStoryActivity extends AppCompatActivity {
         author = intent.getStringExtra(Constants.EXTRA_STORY_AUTHOR);
         date = intent.getStringExtra(Constants.EXTRA_STORY_DATE);
         currentUser = intent.getStringExtra(Constants.EXTRA_CURRENT_USER);
+        dateKey = intent.getStringExtra(Constants.EXTRA_STORY_DATE_KEY);
+
+        handleDatabase(dateKey);
         Log.d(TAG, "author: " + author);
 
         //Delete move button
@@ -78,7 +93,31 @@ public class ViewStoryActivity extends AppCompatActivity {
         Log.d(TAG, "name: " + name);
 
     }
-
+    public void handleDatabase(String date){
+        rootRef = new Firebase("https://astory.firebaseio.com/"+date);
+        storiesDB = rootRef.child("stories");
+        commentsDB = rootRef.child("comments");
+        geoStoriesDB = rootRef.child("geoStories");
+        if(!date.equals("")){
+            masterRootRef = new Firebase("https://astory.firebaseio.com");
+        }else{
+            SimpleDateFormat s = new SimpleDateFormat("MMMM dd, yyyy", Locale.US);
+            Date d = new Date();
+            if(date != null) {
+                try {
+                    d = s.parse(date);
+                } catch (ParseException e) {
+                    e.printStackTrace();
+                }
+            }
+            SimpleDateFormat s2 = new SimpleDateFormat("MM-dd-yyyy", Locale.US);
+            String today = s2.format(d);
+            masterRootRef = new Firebase("https://astory.firebaseio.com/"+today);
+        }
+        masterStoriesDB = masterRootRef.child("stories");
+        masterGeoStoriesDB = masterRootRef.child("geoStories");
+        masterCommentsDB = masterRootRef.child("comments");
+    }
 
     public void onDeleteStory(View v){
         new AlertDialog.Builder(ViewStoryActivity.this)
@@ -87,9 +126,7 @@ public class ViewStoryActivity extends AppCompatActivity {
                 .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int which) {
                         setResult(RESULT_OK, new Intent().putExtra(Constants.VIEW_STORY_KEY, name));
-                        storiesDB.child(name).removeValue();
-                        geoStoriesDB.child(name).removeValue();
-                        commentsDB.child(name).removeValue();
+                        removeStory();
                         finish();
                     }
                 })
@@ -102,11 +139,21 @@ public class ViewStoryActivity extends AppCompatActivity {
                 .show();
 
     }
+    public void removeStory(){
+        storiesDB.child(name).removeValue();
+        geoStoriesDB.child(name).removeValue();
+        commentsDB.child(name).removeValue();
+        masterStoriesDB.child(name).removeValue();
+        masterGeoStoriesDB.child(name).removeValue();
+        masterCommentsDB.child(name).removeValue();
+    }
 
     public void goToComments(View v){
         Intent commentIntent = new Intent(this, CommentActivity.class);
         commentIntent.putExtra(Constants.EXTRA_STORY_COMMENT, name);
         commentIntent.putExtra(Constants.EXTRA_CURRENT_USER, currentUser);
+        commentIntent.putExtra(Constants.EXTRA_STORY_DATE, date);
+        commentIntent.putExtra(Constants.EXTRA_STORY_DATE_KEY, dateKey);
         startActivity(commentIntent);
     }
 
@@ -116,8 +163,18 @@ public class ViewStoryActivity extends AppCompatActivity {
         mediaIntent.putExtra(Constants.MEDIA_STORY_NAME, name);
         mediaIntent.putExtra(Constants.EXTRA_CURRENT_USER, currentUser);
         mediaIntent.putExtra(Constants.EXTRA_STORY_AUTHOR, author);
+        mediaIntent.putExtra(Constants.EXTRA_STORY_DATE, date);
+        mediaIntent.putExtra(Constants.EXTRA_STORY_DATE_KEY, dateKey);
         startActivityForResult(mediaIntent, Constants.MEDIA_REQUEST_CODE);
         finish();
+    }
+
+    public void goToProfile(View v){
+        Intent profileIntent = new Intent(this, ProfileActivity.class);
+        profileIntent.putExtra(Constants.PROFILE_NAME, author);
+        profileIntent.putExtra(Constants.PROFILE_CURRENT_USER, currentUser);
+        startActivity(profileIntent);
+
     }
 
 

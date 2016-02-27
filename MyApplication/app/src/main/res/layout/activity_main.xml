@@ -33,6 +33,27 @@
             android:onClick="logout"
             android:id="@+id/logout_button"
             android:layout_gravity="left|top" />
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/calendar_button"
+            android:id="@+id/calendar_button"
+            android:layout_gravity="right|top"/>
+
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="50dp"
+            android:text="@string/all_stories_button"
+            android:id="@+id/all_stories_button"
+            android:layout_gravity="right|top"/>
+
+        <DatePicker
+            android:id="@+id/dpResult"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone"/>
     </FrameLayout>
 
 

@@ -60,4 +60,14 @@
     <string name="username_hint">example</string>
     <string name="password_hint">Password</string>
     <string name="registration_button">Register</string>
+
+    <!--Map Page Strings-->
+    <string name="calendar_button">Calendar</string>
+    <string name="all_stories_button">All Stories</string>
+
+    <!--User Page Strings-->
+    <string name="user_page">User</string>
+    <string name="profile_story_title">Title</string>
+    <string name="profile_story_city">City</string>
+    <string name="profile_story_date">Date</string>
 </resources>

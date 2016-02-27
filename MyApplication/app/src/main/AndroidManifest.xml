@@ -49,6 +49,15 @@
         <meta-data
             android:name="com.firebase.ui.GoogleClientId"
             android:value="@string/google_client_id" />
+        <activity
+            android:name=".SplashActivity"
+            android:theme="@style/SplashTheme">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+
         <activity android:name=".ViewStoryActivity"
             android:screenOrientation="portrait"
             android:configChanges="orientation">
@@ -66,16 +75,16 @@
             android:screenOrientation="portrait"
             android:configChanges="orientation">
         </activity>
+        <activity android:name=".ProfileActivity"
+            android:screenOrientation="portrait"
+            android:configChanges="orientation">
+
+        </activity>
         <activity
             android:configChanges="orientation"
             android:screenOrientation="portrait"
             android:name=".MainActivity"
             android:label="aStory" >
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
         </activity>
         <service android:name=".GeofenceTransitionsIntentService" />
         <service

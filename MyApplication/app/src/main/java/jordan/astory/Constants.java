@@ -22,10 +22,10 @@ public final class Constants {
 
     public static final long GEOFENCE_EXPIRATION_IN_MILLISECONDS = GEOFENCING_EXPIRATION_IN_HOURS * 60 * 60 * 1000;
 
-    public static final float GEOFENCE_RADIUS_IN_METERS = 35;
+    public static final float GEOFENCE_RADIUS_IN_METERS = 50;
 
     public static final long UPDATE_INTERVAL_IN_MILLISECONDS = 7000;
-    public static final long INACTIVE_UPDATE_INTERVAL_IN_MILLISECONDS = 2*60*1000;
+    public static final long INACTIVE_UPDATE_INTERVAL_IN_MILLISECONDS = 30*60*1000;
 
     /**
      * The fastest rate for active location updates. Exact. Updates will never be more frequent
@@ -41,7 +41,7 @@ public final class Constants {
     protected final static String CURRENT_USER_ID_KEY = "current-user-id-key";
 
     public static final float MAP_ZOOM_LEVEL = 18;
-    public static final double STORY_QUERY_RADIUS = .2;
+    public static final double STORY_QUERY_RADIUS = .5;
 
     public static final HashMap<String, LatLng> KEY_LOCATIONS = new HashMap<String, LatLng>();
     static {
@@ -63,6 +63,7 @@ public final class Constants {
     public final static String EXTRA_STORY_NAME = "jordan.astory.STORY_NAME";
     public final static String EXTRA_STORY_AUTHOR = "jordan.astory.STORY_AUTHOR";
     public final static String EXTRA_STORY_DATE = "jordan.astory.STORY_DATE";
+    public final static String EXTRA_STORY_DATE_KEY = "jordan.astory.STORY_DATE_KEY";
     public final static String EXTRA_CURRENT_USER = "jordan.astory.CURRENT_USER";
     public final static String VIEW_STORY_KEY = "jordan.astory.STORY_KEY";
     public final static String EXTRA_STORY_COMMENT = "jordan.astory.STORY_COMMENT";
@@ -89,4 +90,9 @@ public final class Constants {
     public final static String MEDIA_URI = "jordan.astory.MEDIA_URI";
     public final static String MEDIA_IMAGE_URI = "jordan.astory.MEDIA_IMAGE_URI";
     public final static String MEDIA_STORY_NAME = "jordan.astory.MEIDA_STORY_NAME";
+
+//    Profile Stuff
+    public final static String PROFILE_NAME = "jordan.astory.PROFILE_NAME";
+    public final static String PROFILE_CURRENT_USER = "jordan.astory.PROFILE_CURRENT_USER";
+    public final static int PROFILE_REQUEST_CODE = 15;
 }

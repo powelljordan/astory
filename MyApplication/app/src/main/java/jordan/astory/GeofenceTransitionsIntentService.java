@@ -97,7 +97,7 @@ public class GeofenceTransitionsIntentService extends IntentService {
 //            }
             Log.d(TAG, "notify: "+notify);
             if(notify && geofenceTransition == Geofence.GEOFENCE_TRANSITION_ENTER) {
-                sendNotification("There are stories near you!");
+//                sendNotification("There are stories near you!");
             }
             Log.i(TAG, geofenceTransitionDetails);
         } else {

@@ -15,6 +15,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom"
                 android:id="@+id/avatar"
+                android:onClick="goToProfile"
                 android:src="@mipmap/ic_person_black_24dp"/>
             <TextView
                 android:paddingTop="10dp"

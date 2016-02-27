@@ -16,8 +16,11 @@ import com.firebase.ui.auth.core.FirebaseLoginError;
 import com.firebase.ui.auth.core.SocialProvider;
 import com.google.android.gms.common.SignInButton;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -31,7 +34,6 @@ public class LoginActivity extends FirebaseLoginBaseActivity implements Register
     protected void onCreate(Bundle savedInstanceState){
         super.onCreate(savedInstanceState);
         setContentView(R.layout.login_layout);
-//        Firebase.setAndroidContext(this); //Not sure if necessary
         rootRef = new Firebase("https://astory.firebaseio.com/");
         mLoginButton = (Button) findViewById(R.id.sign_in);
         mRegisterButton = (Button) findViewById(R.id.register);
@@ -89,7 +91,7 @@ public class LoginActivity extends FirebaseLoginBaseActivity implements Register
     public void onFirebaseLoginUserError(FirebaseLoginError firebaseError) {
         // TODO: Handle an error from the user
         Log.d(TAG, firebaseError.toString());
-        Toast.makeText(this, "Login Error", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Login Error. That username password combo isn't quite right", Toast.LENGTH_SHORT).show();
     }
 
     @Override
