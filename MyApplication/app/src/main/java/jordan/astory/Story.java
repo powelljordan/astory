@@ -11,6 +11,7 @@ public class Story {
     public String name;
     public String content;
     public String author;
+    public String uid;
     public String date;
     public LatLng location;
     public double radius;
@@ -30,12 +31,13 @@ public class Story {
         return "Name: " + this.name +
                 "\n Content: "  +  this.content  +
                 "\n Author:  "  +  this.author   +
-                "\n Datae:   "  +  this.date     +
+                "\n Uid:"       +  this.uid      +
+                "\n Date:   "   +  this.date     +
                 "\n Location: " +  this.location +
                 "\n Radius: "   +  this.radius   +
                 "\n Marker: "   +  this.marker   +
                 "\n Geofence: " +  this.geofence +
-                "\n Active: " +    this.active   +
+                "\n Active: "   +  this.active   +
                 "\n Media Uri: "+  this.mediaUri +
                 "\n Media Type:"+  this.mediaType+
                 "\n Media Updated:"+this.mediaUpdated;

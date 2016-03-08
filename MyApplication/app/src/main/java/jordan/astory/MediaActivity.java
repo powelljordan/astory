@@ -501,6 +501,8 @@ public class MediaActivity extends Activity {
         webView.getSettings().setLoadWithOverviewMode(true);
         syncToFirebase(mediaType);
         webView.loadUrl(result.toString());
+        setResult(RESULT_OK, new Intent().putExtra(Constants.MEDIA_URL, result));
+        Log.d(TAG, "Definitely called setResult");
 
 
     }
@@ -550,7 +552,7 @@ public class MediaActivity extends Activity {
         @Override
         protected void onPostExecute(URL result){
             fileURL = result;
-            Log.d(TAG, result.toString());
+            Log.d(TAG, "Does this even happen: " + result.toString());
             loadMedia(result);
 //            previewCapturedImage();
         }

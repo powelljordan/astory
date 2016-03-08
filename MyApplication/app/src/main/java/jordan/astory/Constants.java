@@ -62,11 +62,13 @@ public final class Constants {
     public final static String EXTRA_STORY_CONTENT = "jordan.astory.STORY_CONTENT";
     public final static String EXTRA_STORY_NAME = "jordan.astory.STORY_NAME";
     public final static String EXTRA_STORY_AUTHOR = "jordan.astory.STORY_AUTHOR";
+    public final static String EXTRA_STORY_UID = "jordan.astory.STORY_UID";
     public final static String EXTRA_STORY_DATE = "jordan.astory.STORY_DATE";
     public final static String EXTRA_STORY_DATE_KEY = "jordan.astory.STORY_DATE_KEY";
     public final static String EXTRA_CURRENT_USER = "jordan.astory.CURRENT_USER";
     public final static String VIEW_STORY_KEY = "jordan.astory.STORY_KEY";
     public final static String EXTRA_STORY_COMMENT = "jordan.astory.STORY_COMMENT";
+    public final static String UPVOTED_STORIES = "jordan.astory.UPVOTED_STORIES";
 
     public final static String CURRENT_USER_ID = "jordan.astory.CURRENT_USER_ID";
     final static String MY_ACTION = "MY_ACTION";
@@ -77,7 +79,7 @@ public final class Constants {
     public final static String CLOUDINARY_API_SECRET = "bLX2fK3e4TC5z0ikXmPSdi_TNzg";
     public final static String CLOUDINARY_ENVIRONMENT_VARIABLE = "cloudinary://349733414781831:bLX2fK3e4TC5z0ikXmPSdi_TNzg@dsck8wsag";
 
-//    AWS Stuff
+//     Stuff
     public final static String IDENTITY_POOL_ID = "us-east-1:3e0f22c1-492a-42bc-84c8-09aa8ee7751e";
 
 //    Media Stuff
@@ -90,9 +92,11 @@ public final class Constants {
     public final static String MEDIA_URI = "jordan.astory.MEDIA_URI";
     public final static String MEDIA_IMAGE_URI = "jordan.astory.MEDIA_IMAGE_URI";
     public final static String MEDIA_STORY_NAME = "jordan.astory.MEIDA_STORY_NAME";
+    public final static String MEDIA_URL = "jordan.astory.MEDIA_URL";
 
 //    Profile Stuff
     public final static String PROFILE_NAME = "jordan.astory.PROFILE_NAME";
     public final static String PROFILE_CURRENT_USER = "jordan.astory.PROFILE_CURRENT_USER";
+    public final static String PROFILE_AUTHOR = "jordan.astory.PROFILE_AUTHOR";
     public final static int PROFILE_REQUEST_CODE = 15;
 }

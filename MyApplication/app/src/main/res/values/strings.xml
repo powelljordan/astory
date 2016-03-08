@@ -43,9 +43,11 @@
     <!--Display Story Activity Strings-->
     <string name="remove_story">Delete Story</string>
     <string name="comments">Comments</string>
+    <string name="upvote">Upvote</string>
     <string name="take_picture">Add Picture</string>
     <string name="record_video">Add Video</string>
     <string name="add_media">Multimedia</string>
+    <string name="vote_count">0</string>
 
     <!--Comment Activity Strings-->
     <string name="send_button">Send</string>

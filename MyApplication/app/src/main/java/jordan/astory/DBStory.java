@@ -11,12 +11,14 @@ public class DBStory {
     private String name;
     private String content;
     private String author;
+    private String uid;
     private String date;
     private String latitude;
     private String longitude;
     private String mediaUri;
     private String mediaType;
     private String mediaUpdated;
+    private int voteCount;
     public DBStory(){
 
     }
@@ -30,6 +32,10 @@ public class DBStory {
     }
 
     public String getAuthor(){return author;}
+
+    public String getUid(){
+        return uid;
+    }
 
     public String getDate(){
         return date;
@@ -53,6 +59,10 @@ public class DBStory {
 
     public String getMediaUpdated(){
         return mediaUpdated;
+    }
+
+    public Integer getVoteCount(){
+        return voteCount;
     }
 
     @Override

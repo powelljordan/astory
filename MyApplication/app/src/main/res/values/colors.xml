@@ -4,8 +4,17 @@
     <color name="colorPrimaryDark">#303F9F</color>
     <color name="colorAccent">#FF4081</color>
     <color name="floating_action_button_color">#FF0000</color>
-    <color name="white">#FFFFFF</color>
     <color name="background_holo_dark">#ff000000</color>
     <color name="grey">#808080</color>
     <color name="background_holo_light">#fff3f3f3</color>
+    <color name="black_semi_transparent">#B2000000</color>
+    <color name="background">#e5e5e5</color>
+    <color name="half_black">#808080</color>
+    <color name="white">#fafafa</color>
+    <color name="white_pressed">#f1f1f1</color>
+    <color name="pink">#e91e63</color>
+    <color name="pink_pressed">#ec407a</color>
+    <color name="blue_semi_transparent">#805677fc</color>
+    <color name="blue_semi_transparent_pressed">#80738ffe</color>
+    <color name="deep_sky_blue">#00B2EE</color>
 </resources>

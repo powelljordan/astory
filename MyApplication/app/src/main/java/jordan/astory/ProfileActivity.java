@@ -31,10 +31,13 @@ public class ProfileActivity extends Activity {
     String user;
     String currentUser;
     String currentUserID;
+    String author;
+    String authorID;
     ArrayList<DBStory> stories;
     Firebase userDB = new Firebase("https://astory.firebaseio.com/users/");
     private SharedPreferences mSharedPreferences;
     final private String TAG = "ProfileActivity";
+    Firebase masterRootRef = new Firebase("https://astory.firebaseio.com");
     @Override
     protected void onCreate(Bundle savedInstanceState){
         super.onCreate(savedInstanceState);
@@ -44,13 +47,16 @@ public class ProfileActivity extends Activity {
         Intent intent = getIntent();
         user = intent.getStringExtra(Constants.PROFILE_NAME);
         currentUser = intent.getStringExtra(Constants.PROFILE_CURRENT_USER);
+        author = intent.getStringExtra(Constants.PROFILE_AUTHOR);
+        authorID = intent.getStringExtra(Constants.EXTRA_STORY_UID);
         userName = (TextView)findViewById(R.id.user_name);
         userName.setText(user);
         listView = (ListView)findViewById(R.id.list);
         stories = new ArrayList<>();
         Log.d(TAG, stories.toString());
         Log.d(TAG, currentUserID);
-        Firebase userStoriesRef = userDB.child(currentUserID).child("stories");
+        Firebase userStoriesRef = userDB.child(authorID).child("stories");
+
         final UserStoriesAdapter userStoriesAdapter = new UserStoriesAdapter(getBaseContext(), R.layout.profile_list_item, stories);
         listView.setAdapter(userStoriesAdapter);
 
@@ -99,6 +105,11 @@ public class ProfileActivity extends Activity {
                                         }
 
         );
+
+        }
+
+        public void logout(View v){
+            masterRootRef.unauth();
 
         }
 

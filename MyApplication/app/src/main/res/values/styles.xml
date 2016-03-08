@@ -13,5 +13,10 @@
     <style name="FloatingActionButton" parent="AppTheme">
         <item name="colorAccent">@color/floating_action_button_color</item>
     </style>
+    <style name="menu_labels_style">
+        <item name="android:background">@drawable/fab_label_background</item>
+        <item name="android:textColor">@color/white</item>
+    </style>
+
 
 </resources>

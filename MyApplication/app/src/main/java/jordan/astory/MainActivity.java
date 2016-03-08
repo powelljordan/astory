@@ -723,6 +723,7 @@ public class MainActivity extends FragmentActivity implements
         storyObj.put("latitude", Double.toString(story.location.latitude));
         storyObj.put("longitude", Double.toString(story.location.longitude));
         storyObj.put("author", story.author);
+        storyObj.put("uid", currentUserID);
 //        Log.d(TAG, "addStoryToDB is in fact getting called");
         Firebase storyRef = storiesDB.child(story.name);
         Firebase userRef = usersDB.child(currentUserID);
@@ -882,6 +883,7 @@ public class MainActivity extends FragmentActivity implements
         viewStoryIntent.putExtra(Constants.EXTRA_STORY_NAME, story.name);
         viewStoryIntent.putExtra(Constants.EXTRA_STORY_CONTENT, story.content);
         viewStoryIntent.putExtra(Constants.EXTRA_STORY_AUTHOR, story.author);
+        viewStoryIntent.putExtra(Constants.EXTRA_STORY_UID, story.uid);
         viewStoryIntent.putExtra(Constants.EXTRA_STORY_DATE, story.date);
         Log.d(TAG, "Main Activity date: " + story.date);
         viewStoryIntent.putExtra(Constants.EXTRA_STORY_DATE_KEY, date);
@@ -911,6 +913,9 @@ public class MainActivity extends FragmentActivity implements
             viewStoryData = data;
         }else {
             if ((requestCode == 1) && (resultCode == RESULT_OK)) {
+                if(masterRootRef.getAuth() == null) {
+                    goToLoginScreen();
+                }
                 Log.d(TAG, "Tries to delete story");
                 String viewStory;
                 viewStory = data.getExtras().getString(Constants.VIEW_STORY_KEY);
@@ -934,7 +939,7 @@ public class MainActivity extends FragmentActivity implements
                 editor.apply();
 
 //                Log.d(TAG, "currentUserID: " + currentUserID);
-                Firebase usersDB = new Firebase("https:astory.firebaseio.com/users");
+                Firebase usersDB = new Firebase("https://astory.firebaseio.com/users");
                 usersDB.child(currentUserID).addValueEventListener(new ValueEventListener() {
                     @Override
                     public void onDataChange(DataSnapshot dataSnapshot) {
@@ -978,6 +983,7 @@ public class MainActivity extends FragmentActivity implements
             story.radius = Constants.GEOFENCE_RADIUS_IN_METERS;
 //            Log.d(TAG, currentUser.toString());
             story.author = currentUser.getUsername();
+            story.uid = currentUserID;
             addStoryToGeofenceList(story);
         addStoryGeofence();
 //            Log.d(TAG, "Definitely calls onFinishedInputDialog");
@@ -989,7 +995,7 @@ public class MainActivity extends FragmentActivity implements
 //        addGeofencesButtonHandler(v);
         AddGeofenceFragment dialogFragment = new AddGeofenceFragment();
         dialogFragment.setListener(MainActivity.this);
-        dialogFragment.show(MainActivity.this.getSupportFragmentManager(), "AddGeofenceFragment");
+                dialogFragment.show(MainActivity.this.getSupportFragmentManager(), "AddGeofenceFragment");
         stopLocationUpdates();
     }
 
