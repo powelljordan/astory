@@ -6,21 +6,40 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
+import android.provider.MediaStore;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
+import android.view.ViewGroup;
 import android.webkit.WebView;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.MediaController;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.VideoView;
 
+import com.amazonaws.auth.CognitoCachingCredentialsProvider;
+import com.amazonaws.mobileconnectors.s3.transferutility.TransferObserver;
+import com.amazonaws.mobileconnectors.s3.transferutility.TransferUtility;
+import com.amazonaws.regions.Region;
+import com.amazonaws.regions.Regions;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
+import com.amazonaws.services.s3.model.ResponseHeaderOverrides;
 import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
 import com.firebase.client.FirebaseError;
@@ -32,6 +51,8 @@ import com.google.android.gms.location.GeofencingRequest;
 
 import org.w3c.dom.Text;
 
+import java.io.File;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -46,6 +67,17 @@ import java.util.Set;
 public class ViewStoryActivity extends AppCompatActivity {
     //TODO Add button for handling adding pictures or videos to a story
     //TODO Think of a way to make these viewable. Maybe visit the old wireframes
+    // Activity request codes
+    private static final int CAMERA_CAPTURE_IMAGE_REQUEST_CODE = 100;
+    private static final int CAMERA_CAPTURE_VIDEO_REQUEST_CODE = 200;
+    public static final int MEDIA_TYPE_IMAGE = 1;
+    public static final int MEDIA_TYPE_VIDEO = 2;
+
+    // directory name to store captured images and videos
+    private static final String IMAGE_DIRECTORY_NAME = "aStory";
+
+    private Uri fileUri; // file url to store image/video
+    private URL fileURL;
     private String name;
     private String content;
     private String author;
@@ -59,7 +91,10 @@ public class ViewStoryActivity extends AppCompatActivity {
     private Uri mediaUri;
     private ImageButton deleteButton;
     private WebView webView;
+    private String mediaType;
     private ImageView profile;
+    private static File mediaFile;
+    private Button btnCapturePicture, btnRecordVideo;
     private Firebase rootRef;
     private Firebase storiesDB;
     private Firebase geoStoriesDB;
@@ -68,6 +103,13 @@ public class ViewStoryActivity extends AppCompatActivity {
     private Firebase masterStoriesDB;
     private Firebase masterGeoStoriesDB;
     private Firebase masterCommentsDB;
+    private Firebase upvoteRootRef;
+    private Firebase upvoteStoriesDB;
+    private Firebase upvoteGeoStoriesDB;
+    private Firebase upvoteCommentsDB;
+    private Uri.Builder builder;
+
+
 
     public FloatingActionButton upvoteButton;
 
@@ -95,7 +137,21 @@ public class ViewStoryActivity extends AppCompatActivity {
         currentUser = intent.getStringExtra(Constants.EXTRA_CURRENT_USER);
         dateKey = intent.getStringExtra(Constants.EXTRA_STORY_DATE_KEY);
 
+        //Parse Date
+        SimpleDateFormat s = new SimpleDateFormat("MMMM dd, yyyy", Locale.US);
+        Date d = new Date();
+        if(date != null) {
+            try {
+                d = s.parse(date);
+            } catch (ParseException e) {
+                e.printStackTrace();
+            }
+        }
+        SimpleDateFormat s2 = new SimpleDateFormat("MM-dd-yyyy", Locale.US);
+        today = s2.format(d);
+
         handleDatabase(dateKey);
+        handleCaptureButtons(intent);
         Log.d(TAG, "author: " + author);
         webView = (WebView) findViewById(R.id.view_story_webview);
         loadMedia();
@@ -156,14 +212,20 @@ public class ViewStoryActivity extends AppCompatActivity {
                 Log.d(TAG, "upvotedStories: " + upvotedStories);
             }
         });
+
+
         final Firebase storyRef = new Firebase("https://astory.firebaseio.com").child("stories");
-        storyRef.child(name).addValueEventListener(new ValueEventListener() {
+        storiesDB.child(name).addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
-                TextView count = (TextView) findViewById(R.id.vote_count);
-                if (dataSnapshot.getValue(DBStory.class).getVoteCount() != null) {
-                    vote_count = dataSnapshot.getValue(DBStory.class).getVoteCount();
-                    count.setText(dataSnapshot.getValue(DBStory.class).getVoteCount().toString());
+                if(!currentUser.equals(author)) {
+                    TextView count = (TextView) findViewById(R.id.vote_count);
+                    if(dataSnapshot.getValue(DBStory.class)!= null) {
+                        if (dataSnapshot.getValue(DBStory.class).getVoteCount() != null) {
+                            vote_count = dataSnapshot.getValue(DBStory.class).getVoteCount();
+                            count.setText("+" + dataSnapshot.getValue(DBStory.class).getVoteCount().toString());
+                        }
+                    }
                 }
             }
 
@@ -181,6 +243,99 @@ public class ViewStoryActivity extends AppCompatActivity {
         }
 
 
+        CognitoCachingCredentialsProvider credentialsProvider = new CognitoCachingCredentialsProvider(
+                getApplicationContext(), // get the context for the current activity
+                Constants.IDENTITY_POOL_ID, // your identity pool id
+                Regions.US_EAST_1 //Region
+        );
+        s3 = new AmazonS3Client(credentialsProvider);
+
+        /**
+         * Capture image button click event
+         */
+        pictureButton.setOnClickListener(new View.OnClickListener() {
+
+            @Override
+            public void onClick(View v) {
+                // capture picture
+                captureImage();
+            }
+        });
+
+        /**
+         * Record video button click event
+         */
+        videoButton.setOnClickListener(new View.OnClickListener() {
+
+            @Override
+            public void onClick(View v) {
+                // record video
+                recordVideo();
+            }
+        });
+
+        // Checking camera availability
+        if (!isDeviceSupportCamera()) {
+            Toast.makeText(getApplicationContext(),
+                    "Sorry! Your device doesn't support camera",
+                    Toast.LENGTH_LONG).show();
+            // will close the app if the device does't have camera
+            finish();
+        }
+
+    }
+
+    /**
+     * Handles setting up capture buttons and finding media associated with the story
+     * @param intent
+     */
+    private void handleCaptureButtons(Intent intent){
+        storiesDB.child(name)
+                .addValueEventListener(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(DataSnapshot dataSnapshot) {
+                        DBStory dbStory = dataSnapshot.getValue(DBStory.class);
+                        if (dbStory != null && dbStory.getMediaUri() != null && mediaUpToDate(dbStory)) {
+                            Log.d(TAG, "Really? All these things are true");
+                            try {
+                                fileURL = new URL(dbStory.getMediaUri());
+                            } catch (MalformedURLException e) {
+                                e.printStackTrace();
+                            }
+                            mediaType = dbStory.getMediaType();
+                            if (mediaType.equals("image")) {
+                                syncMedia(fileURL);
+
+                            }
+                            else if (mediaType.equals("video")){
+                                syncMedia(fileURL);
+                            }
+                        }
+                        else if(dbStory != null && dbStory.getMediaType()!=null&& !mediaUpToDate(dbStory)){
+                            mediaType = dbStory.getMediaType();
+                            if(dbStory.getMediaType().equals("image")){
+                                new getUri().execute("image/jpeg");
+                                storiesDB.child(name).child("mediaUpdated").setValue(System.currentTimeMillis());
+                                if(date != null) {
+                                    masterStoriesDB.child(name).child("mediaUpdated").setValue(System.currentTimeMillis());
+
+                                }
+                            }else if(dbStory.getMediaType().equals("video")){
+                                new getUri().execute("video/mp4");
+                                storiesDB.child(name).child("mediaUpdated").setValue(System.currentTimeMillis());
+                                if(date != null) {
+                                    masterStoriesDB.child(name).child("mediaUpdated").setValue(System.currentTimeMillis());
+                                }
+                            }
+
+                        }
+                    }
+
+                    @Override
+                    public void onCancelled(FirebaseError firebaseError) {
+
+                    }
+                });
     }
     public void handleDatabase(String date){
         rootRef = new Firebase("https://astory.firebaseio.com/"+date);
@@ -189,24 +344,294 @@ public class ViewStoryActivity extends AppCompatActivity {
         geoStoriesDB = rootRef.child("geoStories");
         if(!date.equals("")){
             masterRootRef = new Firebase("https://astory.firebaseio.com");
+            masterStoriesDB = masterRootRef.child("stories");
+            upvoteRootRef = new Firebase("https://astory.firebaseio.com");
         }else{
-            SimpleDateFormat s = new SimpleDateFormat("MMMM dd, yyyy", Locale.US);
-            Date d = new Date();
-            if(date != null) {
-                try {
-                    d = s.parse(date);
-                } catch (ParseException e) {
-                    e.printStackTrace();
-                }
-            }
-            SimpleDateFormat s2 = new SimpleDateFormat("MM-dd-yyyy", Locale.US);
-            today = s2.format(d);
             masterRootRef = new Firebase("https://astory.firebaseio.com/"+today);
+            masterStoriesDB = masterRootRef.child("stories");
+            storiesDB.child(name).addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(DataSnapshot dataSnapshot) {
+                    String originalDate = dataSnapshot.getValue(DBStory.class).getDate();
+                    if(originalDate == null){
+                        originalDate = "January 15, 2016";
+                    }
+                    SimpleDateFormat s1 = new SimpleDateFormat("MMMM dd, yyyy", Locale.US);
+                    Date d = new Date();
+                    try {
+                        Log.d(TAG, "original date: " + originalDate);
+                        d = s1.parse(originalDate);
+                    } catch (ParseException e) {
+                        e.printStackTrace();
+                    }
+
+                    SimpleDateFormat s2 = new SimpleDateFormat("MM-dd-yyyy", Locale.US);
+                    String storyDate = s2.format(d);
+                    upvoteRootRef = new Firebase("https://astory.firebaseio.com/"+storyDate);
+                    upvoteStoriesDB = upvoteRootRef.child("stories");
+                    upvoteGeoStoriesDB = upvoteRootRef.child("geoStories");
+                    upvoteCommentsDB = upvoteRootRef.child("comments");
+                }
+
+                @Override
+                public void onCancelled(FirebaseError firebaseError) {
+
+                }
+            });
         }
-        masterStoriesDB = masterRootRef.child("stories");
-        masterGeoStoriesDB = masterRootRef.child("geoStories");
-        masterCommentsDB = masterRootRef.child("comments");
+
     }
+
+    /**
+     * Checking device has camera hardware or not
+     * */
+    private boolean isDeviceSupportCamera() {
+        if (getApplicationContext().getPackageManager().hasSystemFeature(
+                PackageManager.FEATURE_CAMERA)) {
+            // this device has a camera
+            return true;
+        } else {
+            // no camera on this device
+            return false;
+        }
+    }
+    /**
+     * Capturing Camera Image will lauch camera app requrest image capture
+     */
+    private void captureImage() {
+        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+
+        fileUri = getOutputMediaFileUri(MEDIA_TYPE_IMAGE);
+
+        intent.putExtra(MediaStore.EXTRA_OUTPUT, fileUri);
+
+        // start the image capture Intent
+        startActivityForResult(intent, CAMERA_CAPTURE_IMAGE_REQUEST_CODE);
+    }
+
+    /**
+     * Here we store the file url as it will be null after returning from camera
+     * app
+     */
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+
+        // save file url in bundle as it will be null on scren orientation
+        // changes
+        outState.putParcelable("file_uri", fileUri);
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+
+        // get the file url
+        fileUri = savedInstanceState.getParcelable("file_uri");
+    }
+
+    /**
+     * Recording video
+     */
+    private void recordVideo() {
+        Intent intent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
+
+        fileUri = getOutputMediaFileUri(MEDIA_TYPE_VIDEO);
+
+        // set video quality
+        intent.putExtra(MediaStore.EXTRA_VIDEO_QUALITY, 1);
+
+        intent.putExtra(MediaStore.EXTRA_OUTPUT, fileUri); // set the image file
+        // name
+
+        // start the video capture Intent
+        startActivityForResult(intent, CAMERA_CAPTURE_VIDEO_REQUEST_CODE);
+    }
+
+    /**
+     * Receiving activity result method will be called after closing the camera
+     * */
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        // if the result is capturing Image
+        if (requestCode == CAMERA_CAPTURE_IMAGE_REQUEST_CODE) {
+            if (resultCode == RESULT_OK) {
+                // successfully captured the image
+                // display it in image view
+                new UploadMedia().execute();
+                mediaType = "image";
+                storiesDB.child(name).child("mediaUpdated").setValue(System.currentTimeMillis());
+                if(date != null) {
+                    masterStoriesDB.child(name).child("mediaUpdated").setValue(System.currentTimeMillis());
+                }
+                new getUri().execute("image/jpeg");
+            } else if (resultCode == RESULT_CANCELED) {
+                // user cancelled Image capture
+                Toast.makeText(getApplicationContext(),
+                        "User cancelled image capture", Toast.LENGTH_SHORT)
+                        .show();
+            } else {
+                // failed to capture image
+                Toast.makeText(getApplicationContext(),
+                        "Sorry! Failed to capture image", Toast.LENGTH_SHORT)
+                        .show();
+            }
+        } else if (requestCode == CAMERA_CAPTURE_VIDEO_REQUEST_CODE) {
+            if (resultCode == RESULT_OK) {
+                // video successfully recorded
+                // preview the recorded video
+                new UploadMedia().execute();
+                mediaType = "video";
+                storiesDB.child(name).child("mediaUpdated").setValue(System.currentTimeMillis());
+                if(date != null) {
+                    masterStoriesDB.child(name).child("mediaUpdated").setValue(System.currentTimeMillis());
+                }
+                new getUri().execute("video/mp4");
+            } else if (resultCode == RESULT_CANCELED) {
+                // user cancelled recording
+                Toast.makeText(getApplicationContext(),
+                        "User cancelled video recording", Toast.LENGTH_SHORT)
+                        .show();
+            } else {
+                // failed to record video
+                Toast.makeText(getApplicationContext(),
+                        "Sorry! Failed to record video", Toast.LENGTH_SHORT)
+                        .show();
+            }
+        }
+        Toast.makeText(getApplicationContext(), "Your story has been added", Toast.LENGTH_SHORT).show();
+    }
+
+
+    /**
+     * ------------ Helper Methods ----------------------
+     * */
+
+    /**
+     * Creating file uri to store image/video
+     */
+    public Uri getOutputMediaFileUri(int type) {
+        return Uri.fromFile(getOutputMediaFile(type));
+    }
+
+    /**
+     * returning image / video
+     */
+    private File getOutputMediaFile(int type) {
+
+        // External sdcard location
+        File mediaStorageDir = new File(
+                Environment
+                        .getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+                IMAGE_DIRECTORY_NAME);
+
+        // Create the storage directory if it does not exist
+        if (!mediaStorageDir.exists()) {
+            if (!mediaStorageDir.mkdirs()) {
+                Log.d(IMAGE_DIRECTORY_NAME, "Oops! Failed create "
+                        + IMAGE_DIRECTORY_NAME + " directory");
+                return null;
+            }
+        }
+
+        // Create a media file name
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss",
+                Locale.getDefault()).format(new Date());
+
+        if (type == MEDIA_TYPE_IMAGE) {
+            mediaFile = new File(mediaStorageDir.getPath() + File.separator
+                    + "IMG_" + timeStamp + ".jpg");
+        } else if (type == MEDIA_TYPE_VIDEO) {
+            mediaFile = new File(mediaStorageDir.getPath() + File.separator
+                    + "VID_" + timeStamp + ".mp4");
+        } else {
+            return null;
+        }
+        return mediaFile;
+    }
+
+
+
+    public boolean mediaUpToDate(DBStory story){
+        if(story.getMediaUpdated() == null){
+            return false;
+        }
+        else{
+            if((System.currentTimeMillis() - Double.parseDouble(story.getMediaUpdated())) < 59*60*1000){
+                Log.d(TAG, "last updated "+(System.currentTimeMillis() - Double.parseDouble(story.getMediaUpdated())));
+                return true;
+            }else{
+                return false;
+            }
+        }
+    }
+    public void syncToFirebase(String uriType){
+        Log.d(TAG, "syncToFirebase called");
+        Log.d(TAG, storiesDB.toString());
+        Log.d(TAG, masterStoriesDB.toString());
+        storiesDB.child(name).child("mediaType").setValue(uriType);
+        storiesDB.child(name).child("mediaUri").setValue(fileURL);
+        if(date != null){
+            masterStoriesDB.child(name).child("mediaType").setValue(uriType);
+            masterStoriesDB.child(name).child("mediaUri").setValue(fileURL);
+        }
+
+
+    }
+
+
+    private AmazonS3 s3;
+    private final String MY_BUCKET = "astory-media";
+    //Storing data
+    private class UploadMedia extends AsyncTask<Void,Void,Void> {
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            CognitoCachingCredentialsProvider credentialsProvider = new CognitoCachingCredentialsProvider(
+                    getApplicationContext(), // get the context for the current activity
+                    Constants.IDENTITY_POOL_ID, // your identity pool id
+                    Regions.US_EAST_1 //Region
+            );
+            s3 = new AmazonS3Client(credentialsProvider);
+            Log.d(TAG, "s3: " + s3);
+
+            // Set the region of your S3 bucket
+            s3.setRegion(Region.getRegion(Regions.US_EAST_1));
+            Log.d(TAG, "s3 after adding region: " + s3);
+            TransferUtility transferUtility = new TransferUtility(s3, getApplicationContext());
+
+            TransferObserver observer = transferUtility.upload(
+                    MY_BUCKET,
+                    name,
+                    mediaFile
+            );
+            return null;
+        }
+    }
+
+    private class getUri extends AsyncTask<String, Void, URL>{
+
+        @Override
+        protected URL doInBackground(String... types) {
+            ResponseHeaderOverrides override = new ResponseHeaderOverrides();
+            override.setContentType(types[0]);
+            GeneratePresignedUrlRequest urlRequest = new GeneratePresignedUrlRequest( MY_BUCKET, name);
+            urlRequest.setExpiration(new Date(System.currentTimeMillis() + 7*24*60*60*1000 ) );  // Added a week's worth of milliseconds to the current time.
+            urlRequest.setResponseHeaders(override);
+            URL url = s3.generatePresignedUrl(urlRequest);
+            return url;
+        }
+
+        @Override
+        protected void onPostExecute(URL result){
+            fileURL = result;
+            Log.d(TAG, "Does this even happen: " + result.toString());
+            syncMedia(result);
+//            previewCapturedImage();
+        }
+    }
+
+
 
     public void onDeleteStory(View v){
         new AlertDialog.Builder(ViewStoryActivity.this)
@@ -233,7 +658,7 @@ public class ViewStoryActivity extends AppCompatActivity {
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setUseWideViewPort(true);
         webView.getSettings().setLoadWithOverviewMode(true);
-        webView.setLayerType(WebView.LAYER_TYPE_SOFTWARE, null);
+//        webView.setLayerType(WebView.LAYER_TYPE_SOFTWARE, null);
         Firebase storyRef = new Firebase("https://astory.firebaseio.com").child("stories");
         final String[] result = new String[1];
         storyRef.child(name).addValueEventListener(new ValueEventListener() {
@@ -241,7 +666,13 @@ public class ViewStoryActivity extends AppCompatActivity {
             public void onDataChange(DataSnapshot dataSnapshot) {
                 result[0] = dataSnapshot.getValue(DBStory.class).getMediaUri();
                 if (result[0] != null) {
-                    webView.loadUrl(result[0]);
+                    if (dataSnapshot.getValue(DBStory.class).getMediaType().equals("video")) {
+                        ViewGroup.LayoutParams lp = webView.getLayoutParams();
+                        lp.height = (int) pxFromDp(getApplicationContext(), 400);
+                        webView.setLayoutParams(lp);
+                        webView.loadUrl(result[0]);
+                    }
+
                 }
 
             }
@@ -253,6 +684,16 @@ public class ViewStoryActivity extends AppCompatActivity {
         });
 
     }
+
+    public void syncMedia(URL result){
+        syncToFirebase(mediaType);
+        webView.loadUrl(result.toString());
+//        setResult(RESULT_OK, new Intent().putExtra(Constants.MEDIA_URL, result));
+//        Log.d(TAG, "Definitely called setResult");
+    }
+
+
+
     public void removeStory(){
         storiesDB.child(name).removeValue();
         geoStoriesDB.child(name).removeValue();
@@ -280,7 +721,6 @@ public class ViewStoryActivity extends AppCompatActivity {
         mediaIntent.putExtra(Constants.EXTRA_STORY_DATE, date);
         mediaIntent.putExtra(Constants.EXTRA_STORY_DATE_KEY, dateKey);
         startActivityForResult(mediaIntent, Constants.MEDIA_REQUEST_CODE);
-//        finish();
     }
 
     public void goToProfile(View v){
@@ -305,29 +745,13 @@ public class ViewStoryActivity extends AppCompatActivity {
 
 
     public void addToVoteCount(final int delta){
-        final Firebase storyRef = new Firebase("https://astory.firebaseio.com").child("stories");
-        final Firebase todayStoryRef = new Firebase("https://astory.firebaseio.com/"+today).child("stories");
         vote_count+=delta;
-        storyRef.child(name).child("voteCount").setValue(vote_count);
+        storiesDB.child(name).child("voteCount").setValue(vote_count);
+        upvoteStoriesDB.child(name).child("voteCount").setValue(vote_count);
+    }
 
-
-//        todayStoryRef.child(name).addValueEventListener(new ValueEventListener() {
-//            @Override
-//            public void onDataChange(DataSnapshot dataSnapshot) {
-//                Integer currentCount = 0;
-//                if(dataSnapshot.getValue(DBStory.class).getVoteCount() == null){
-//                    currentCount = dataSnapshot.getValue(DBStory.class).getVoteCount();
-//                    TextView count = (TextView) findViewById(R.id.upvote);
-//                    count.setText(currentCount);
-//                }
-//                todayStoryRef.child(name).child("voteCount").setValue(currentCount + delta);
-//            }
-//
-//            @Override
-//            public void onCancelled(FirebaseError firebaseError) {
-//
-//            }
-//        });
+    public static float pxFromDp(final Context context, final float dp) {
+        return dp * context.getResources().getDisplayMetrics().density;
     }
 
 

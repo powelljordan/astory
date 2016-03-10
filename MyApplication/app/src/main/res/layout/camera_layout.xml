@@ -30,7 +30,7 @@
         <WebView
             android:id="@+id/media_web_view"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"></WebView>
+            android:layout_height="wrap_content"></WebView>
     <ImageView
         android:id="@+id/imgPreview"
         android:layout_width="match_parent"

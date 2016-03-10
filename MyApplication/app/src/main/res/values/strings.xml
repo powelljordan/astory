@@ -47,7 +47,7 @@
     <string name="take_picture">Add Picture</string>
     <string name="record_video">Add Video</string>
     <string name="add_media">Multimedia</string>
-    <string name="vote_count">0</string>
+    <string name="vote_count"></string>
 
     <!--Comment Activity Strings-->
     <string name="send_button">Send</string>
