@@ -13,6 +13,7 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.location.Location;
+import com.getbase.floatingactionbutton.FloatingActionButton;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v7.app.ActionBarActivity;
@@ -138,8 +139,8 @@ public class MainActivity extends FragmentActivity implements
     public static DBUser currentUser;
 
     private DatePicker dpResult;
-    private Button calendarButton;
-    private Button allStoriesButton;
+    private FloatingActionButton calendarButton;
+    private FloatingActionButton allStoriesButton;
     private boolean initiallyLoadedStories = false;
 
     /**
@@ -385,6 +386,10 @@ public class MainActivity extends FragmentActivity implements
     @Override
     public void onResume(){
         super.onResume();
+        Firebase credentialsRef = new Firebase("https://astory.firebaseio.com");
+        if(credentialsRef.getAuth() == null) {
+            goToLoginScreen();
+        }
         if(mGoogleApiClient.isConnected() && mRequestingLocationUpdates){
             GeofenceTransitionsIntentService.notify = false;
             mLocationRequest.setInterval(Constants.UPDATE_INTERVAL_IN_MILLISECONDS);
@@ -864,7 +869,7 @@ public class MainActivity extends FragmentActivity implements
                 for (Story story : storyList) {
                     if (story.marker.equals(marker)) {
                         if (story.active) {
-                            Log.d(TAG, "within marker listener "+story.date);
+                            Log.d(TAG, "within marker listener " + story.date);
                             goToViewStoryScreen(story);
                             return true;
                         } else {
@@ -896,6 +901,20 @@ public class MainActivity extends FragmentActivity implements
     public void goToLoginScreen(){
         Intent loginIntent = new Intent(this, LoginActivity.class);
         startActivityForResult(loginIntent, 2);
+    }
+
+    public void goToProfile(View v){
+        Intent profileIntent = new Intent(this, ProfileActivity.class);
+        profileIntent.putExtra(Constants.PROFILE_NAME, currentUser.getUsername());
+        profileIntent.putExtra(Constants.PROFILE_CURRENT_USER, currentUser.getUsername());
+        profileIntent.putExtra(Constants.PROFILE_AUTHOR, currentUser.getUsername());
+        if(currentUserID == null){
+            Toast.makeText(getApplicationContext(), "Sorry, your stories aren't available right now", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        profileIntent.putExtra(Constants.EXTRA_STORY_UID, currentUserID);
+        startActivity(profileIntent);
+
     }
 
     public void logout(View v){
@@ -1042,7 +1061,7 @@ public class MainActivity extends FragmentActivity implements
     }
 
     public void addCalendarButtonListener(){
-        calendarButton = (Button) findViewById(R.id.calendar_button);
+        calendarButton = (FloatingActionButton) findViewById(R.id.calendar_button);
         calendarButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -1053,7 +1072,7 @@ public class MainActivity extends FragmentActivity implements
     }
 
     public void addAllStoriesButtonListener(){
-        allStoriesButton = (Button) findViewById(R.id.all_stories_button);
+        allStoriesButton = (FloatingActionButton) findViewById(R.id.all_stories_button);
         allStoriesButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {

@@ -19,6 +19,9 @@ public class DBStory {
     private String mediaType;
     private String mediaUpdated;
     private int voteCount;
+    private int happyCount;
+    private int sadCount;
+    private int madCount;
     public DBStory(){
 
     }
@@ -63,6 +66,16 @@ public class DBStory {
 
     public Integer getVoteCount(){
         return voteCount;
+    }
+
+    public Integer getHappyCount(){return happyCount;}
+
+    public Integer getSadCount(){
+        return sadCount;
+    }
+
+    public Integer getMadCount(){
+        return madCount;
     }
 
     @Override

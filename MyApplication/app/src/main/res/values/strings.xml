@@ -38,6 +38,11 @@
     <string name="Add">Add</string>
     <string name="Cancel">Cancel</string>
 
+    <string name="add_story">Create a story</string>
+    <string name="date_filter">Filter by date</string>
+    <string name="all_stories">Show all stories</string>
+    <string name="profile">View your profile</string>
+
 
     <string name="google_client_id">118911688369-8uio598dd6pp6fotdgdp1l40h8e73s96.apps.googleusercontent.com</string>
     <!--Display Story Activity Strings-->

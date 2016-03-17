@@ -110,6 +110,7 @@ public class ProfileActivity extends Activity {
 
         public void logout(View v){
             masterRootRef.unauth();
+            finish();
 
         }
 

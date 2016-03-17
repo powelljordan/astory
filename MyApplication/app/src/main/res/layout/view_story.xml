@@ -107,6 +107,7 @@
             android:layout_height="wrap_content"
             android:text="Drop"/>
     </LinearLayout>
+
         <com.getbase.floatingactionbutton.FloatingActionsMenu
             android:id="@+id/multiple_actions"
             android:layout_width="wrap_content"

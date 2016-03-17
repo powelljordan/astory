@@ -285,6 +285,15 @@ public class ViewStoryActivity extends AppCompatActivity {
 
     }
 
+    @Override
+    public void onResume(){
+        super.onResume();
+        Firebase credentialsRef = new Firebase("https://astory.firebaseio.com");
+        if(credentialsRef.getAuth() == null) {
+            finish();
+        }
+    }
+
     /**
      * Handles setting up capture buttons and finding media associated with the story
      * @param intent
