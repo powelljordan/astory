@@ -20,6 +20,11 @@ public class Story {
     public String mediaUri;
     public String mediaType;
     public String mediaUpdated;
+    public Integer happyCount;
+    public Integer sadCount;
+    public Integer madCount;
+    public Integer surprisedCount;
+    public Integer commentCount;
     public boolean active = false;
 
     public Story(){

@@ -11,6 +11,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.res.Resources;
 import android.graphics.Color;
 import android.location.Location;
 import com.getbase.floatingactionbutton.FloatingActionButton;
@@ -53,12 +54,14 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.pushbots.push.Pushbots;
 
 
 import java.text.ParseException;
@@ -175,6 +178,8 @@ public class MainActivity extends FragmentActivity implements
 
         mSharedPreferences = getSharedPreferences(Constants.SHARED_PREFERENCES_NAME, MODE_PRIVATE);
 
+        Pushbots.sharedInstance().init(this);
+
         mGeofencesAdded = mSharedPreferences.getBoolean(Constants.GEOFENCES_ADDED_KEY, false);
 
         mRequestingLocationUpdates = true;
@@ -210,8 +215,10 @@ public class MainActivity extends FragmentActivity implements
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
                 currentUser = dataSnapshot.getValue(DBUser.class);
-                if(currentUser.getStories() != null){
+                if (currentUser != null) {
+                    if (currentUser.getStories() != null) {
 //                    currentUserStories = currentUser.getStories();
+                    }
                 }
 
 //                Log.d(TAG, "currentUser: " + currentUser);
@@ -298,6 +305,7 @@ public class MainActivity extends FragmentActivity implements
             specificStoryDB.addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override
                 public void onDataChange(DataSnapshot dataSnapshot) {
+                    Log.d(TAG, "dataSnapshot: "+dataSnapshot);
                     DBStory dbStory = dataSnapshot.getValue(DBStory.class);
 //                    Log.d(TAG, "dbStory " + dbStory);
                     if (dbStory != null) {
@@ -318,6 +326,12 @@ public class MainActivity extends FragmentActivity implements
                             story.location = new LatLng(Double.parseDouble(dbStory.getLatitude()), Double.parseDouble(dbStory.getLongitude()));
                             story.radius = Constants.GEOFENCE_RADIUS_IN_METERS;
                             story.author = dbStory.getAuthor();
+                            story.uid = dbStory.getUid();
+                            story.happyCount = dbStory.getHappyCount();
+                            story.sadCount = dbStory.getSadCount();
+                            story.madCount = dbStory.getMadCount();
+                            story.surprisedCount = dbStory.getSurprisedCount();
+                            story.commentCount = dbStory.getCommentCount();
                             addStoryToDevice(story);
                             addStoryGeofence();
                             Log.d(TAG, "Now storyList contains "+storyList.size()+" stories");
@@ -711,7 +725,8 @@ public class MainActivity extends FragmentActivity implements
 //                Log.d(TAG, "item " + geo.getRequestId());
             }
             story.geofence = mGeofenceList.get(0);
-            Marker storyMarker = mMap.addMarker(new MarkerOptions().position(story.location).title(story.name));
+            Marker storyMarker = mMap.addMarker(new MarkerOptions().position(story.location).title(story.name)
+                    .icon(BitmapDescriptorFactory.fromResource(R.mipmap.seen_marker64)));
 //        addMarkerListener();
             story.marker = storyMarker;
             storyList.add(story);
@@ -813,7 +828,8 @@ public class MainActivity extends FragmentActivity implements
             }
             story.geofence = mGeofenceList.get(0);
             Log.d(TAG, "add stories to device called");
-            Marker storyMarker = mMap.addMarker(new MarkerOptions().position(story.location).title(story.name));
+            Marker storyMarker = mMap.addMarker(new MarkerOptions().position(story.location).title(story.name)
+                    .icon(BitmapDescriptorFactory.fromResource(R.mipmap.seen_marker64)));
 //        addMarkerListener();
             story.marker = storyMarker;
             storyList.add(story);
@@ -848,13 +864,16 @@ public class MainActivity extends FragmentActivity implements
     }
 
     public void updateMap(){
+        if(mCurrentLocation == null){
+            return;
+        }
         LatLng myLocation = new LatLng(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude());
         mMap.animateCamera(CameraUpdateFactory.newLatLng(myLocation));
 
         if(myCircle != null){
             myCircle.remove();
         }
-        myCircle = mMap.addCircle(new CircleOptions().center(myLocation).radius(Constants.GEOFENCE_RADIUS_IN_METERS).strokeColor(Color.BLUE));
+        myCircle = mMap.addCircle(new CircleOptions().center(myLocation).radius(Constants.GEOFENCE_RADIUS_IN_METERS - 10).strokeColor(Color.BLUE));
 //        mMap.addMarker(new MarkerOptions().position(myLocation).title("Marker in myLocation"));
         addMarkerListener();
 
@@ -1036,7 +1055,7 @@ public class MainActivity extends FragmentActivity implements
         if(transition == Geofence.GEOFENCE_TRANSITION_ENTER){
             for(Story story: storyList){
                 if(story.name.equals(id)){
-                    story.marker.setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN));
+                    story.marker.setIcon(BitmapDescriptorFactory.fromResource(getResource(story)));
                     story.active = true;
                 }
             }
@@ -1044,11 +1063,42 @@ public class MainActivity extends FragmentActivity implements
         if(transition == Geofence.GEOFENCE_TRANSITION_EXIT){
             for(Story story: storyList){
                 if(story.name.equals(id)){
-                    story.marker.setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED));
+                    story.marker.setIcon(BitmapDescriptorFactory.fromResource(R.mipmap.seen_marker64));
                     story.active = false;
                 }
             }
         }
+    }
+
+    public int getResource(Story story){
+        String locationMood = "neutral";
+        int moodCount = 0;
+        if(story.happyCount != null && story.happyCount > moodCount){
+            locationMood="happy";
+            moodCount = story.happyCount;
+        }
+        if(story.sadCount != null && story.sadCount > moodCount){
+            locationMood="sad";
+            moodCount = story.sadCount;
+        }
+        if(story.madCount != null && story.madCount > moodCount){
+            locationMood = "mad";
+            moodCount = story.madCount;
+        }
+        if(story.surprisedCount != null && story.surprisedCount > moodCount){
+            locationMood = "surprised";
+//            moodCount = story.surprisedCount;
+        }
+
+        switch(locationMood){
+            case "happy":return R.mipmap.happy_marker64;
+            case "sad":return R.mipmap.sad_marker64;
+            case "mad":return R.mipmap.mad_marker64;
+            case "surprised":return R.mipmap.surprised_marker64;
+            case "neutral":return R.mipmap.default_marker64;
+        }
+        return R.mipmap.seen_marker64;
+
     }
 
     public void setCurrentDateOnView(){

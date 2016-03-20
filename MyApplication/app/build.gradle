@@ -40,6 +40,8 @@ dependencies {
     compile 'com.amazonaws:aws-android-sdk-core:2.+'
     compile 'com.amazonaws:aws-android-sdk-cognito:2.+'
     compile 'com.amazonaws:aws-android-sdk-s3:2.+'
+    compile 'com.pushbots:pushbots-lib:2.0.13@aar'
+
 
 
 

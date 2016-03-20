@@ -16,6 +16,7 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.provider.MediaStore;
+import android.support.v4.app.DialogFragment;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -64,7 +65,7 @@ import java.util.Set;
 /**
  * Created by Jordan on 12/30/2015.
  */
-public class ViewStoryActivity extends AppCompatActivity {
+public class ViewStoryActivity extends AppCompatActivity implements SelectEmoticonFragment.SelectEmoticonFragmentListener, ShowEmoticonsFragment.ShowEmoticonsFragmentListener{
     //TODO Add button for handling adding pictures or videos to a story
     //TODO Think of a way to make these viewable. Maybe visit the old wireframes
     // Activity request codes
@@ -88,13 +89,26 @@ public class ViewStoryActivity extends AppCompatActivity {
     private String currentUserID;
     private String today;
     private Integer vote_count;
+    private Integer happy_count;
+    private Integer sad_count;
+    private Integer mad_count;
+    private Integer surprised_count;
+    private Integer viewCount;
+
+    private LinearLayout emoticons;
+    Set<String> upvotedStories;
+    private Set<String> happyStories;
+    private Set<String> sadStories;
+    private Set<String> madStories;
+    private Set<String> surprisedStories;
+    private Set<String> seenStories;
     private Uri mediaUri;
     private ImageButton deleteButton;
     private WebView webView;
     private String mediaType;
     private ImageView profile;
     private static File mediaFile;
-    private Button btnCapturePicture, btnRecordVideo;
+    private ImageView happy, sad, mad, surprised;
     private Firebase rootRef;
     private Firebase storiesDB;
     private Firebase geoStoriesDB;
@@ -108,6 +122,7 @@ public class ViewStoryActivity extends AppCompatActivity {
     private Firebase upvoteGeoStoriesDB;
     private Firebase upvoteCommentsDB;
     private Uri.Builder builder;
+    private String oldURL;
 
 
 
@@ -175,13 +190,37 @@ public class ViewStoryActivity extends AppCompatActivity {
         Log.d(TAG, "author: " + author);
         Log.d(TAG, "name: " + name);
 
+        seenStories = new HashSet<>(mSharedPreferences.getStringSet(Constants.SEEN_STORIES, new HashSet<String>()));
+
+        happy = (ImageView) findViewById(R.id.happyCount);
+        sad = (ImageView) findViewById(R.id.sadCount);
+        mad = (ImageView) findViewById(R.id.madCount);
+        surprised = (ImageView) findViewById(R.id.surprisedCount);
+
+        emoticons = (LinearLayout) findViewById(R.id.emoticons);
+        emoticons.setOnClickListener(new View.OnClickListener() {
+
+            @Override
+            public void onClick(View v) {
+                showDisplayEmoticonsDialog(v);
+            }
+        });
+
+        SharedPreferences.Editor editor = mSharedPreferences.edit();
+        seenStories = new HashSet<>(mSharedPreferences.getStringSet(Constants.SEEN_STORIES, new HashSet<String>()));
+        mSharedPreferences.getStringSet(Constants.SEEN_STORIES, seenStories);
+
+        editor.putStringSet(Constants.SURPRISED_STORIES, surprisedStories);
+        editor.putString(Constants.CURRENT_STORY, name);
+        editor.apply();
+
         FloatingActionButton commentButton = (FloatingActionButton)findViewById(R.id.comment);
         upvoteButton = (FloatingActionButton)findViewById(R.id.upvote);
         FloatingActionButton pictureButton = (FloatingActionButton)findViewById(R.id.takePicture);
         FloatingActionButton videoButton = (FloatingActionButton)findViewById(R.id.recordVideo);
-        Set<String> upvotedStories = new HashSet<>(mSharedPreferences.getStringSet(Constants.UPVOTED_STORIES, new HashSet<String>()));
+        upvotedStories = new HashSet<>(mSharedPreferences.getStringSet(Constants.UPVOTED_STORIES, new HashSet<String>()));
 //        mSharedPreferences.getStringSet(Constants.UPVOTED_STORIES, upvotedStories);
-        Log.d(TAG, "onCreate upvotedStories: "+upvotedStories);
+        Log.d(TAG, "onCreate upvotedStories: " + upvotedStories);
         if(upvotedStories.contains(name)){
             upvoteButton.setColorNormalResId(R.color.deep_sky_blue);
             Log.d(TAG, "should be blue");
@@ -191,21 +230,52 @@ public class ViewStoryActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 Set<String> upvotedStories = new HashSet<>(mSharedPreferences.getStringSet(Constants.UPVOTED_STORIES, new HashSet<String>()));
+                happyStories = new HashSet<>(mSharedPreferences.getStringSet(Constants.HAPPY_STORIES, new HashSet<String>()));
+                sadStories = new HashSet<>(mSharedPreferences.getStringSet(Constants.SAD_STORIES, new HashSet<String>()));
+                madStories = new HashSet<>(mSharedPreferences.getStringSet(Constants.MAD_STORIES, new HashSet<String>()));
+                surprisedStories = new HashSet<>(mSharedPreferences.getStringSet(Constants.SURPRISED_STORIES, new HashSet<String>()));
                 mSharedPreferences.getStringSet(Constants.UPVOTED_STORIES, upvotedStories);
+                mSharedPreferences.getStringSet(Constants.HAPPY_STORIES, happyStories);
+                mSharedPreferences.getStringSet(Constants.SAD_STORIES, sadStories);
+                mSharedPreferences.getStringSet(Constants.MAD_STORIES, madStories);
+                mSharedPreferences.getStringSet(Constants.SURPRISED_STORIES, surprisedStories);
+                Log.d(TAG, "happyStories: " + happyStories);
+                Log.d(TAG, "sadStories: " + sadStories);
+                Log.d(TAG, "madStories: "+madStories);
+                Log.d(TAG, "surprisedStories: "+surprisedStories);
                 if (upvotedStories.contains(name)) {
                     Log.d(TAG, "upVotedStories contains name");
                     upvoteButton.setColorNormalResId(R.color.white);
-//                    upvoteButton.setColorNormal(R.color.white);
                     upvotedStories.remove(name);
-                    addToVoteCount(-1);
+                    addToVoteCount(-1, "voteCount", vote_count);
+                    if(happyStories.contains(name)){
+                        happyStories.remove(name);
+                        addToVoteCount(-1, "happyCount", happy_count);
+                    }
+                    if(sadStories.contains(name)){
+                        sadStories.remove(name);
+                        addToVoteCount(-1, "sadCount", sad_count);
+                    }
+                    if(madStories.contains(name)){
+                        madStories.remove(name);
+                        addToVoteCount(-1, "madCount", mad_count);
+                    }
+                    if(surprisedStories.contains(name)){
+                        surprisedStories.remove(name);
+                        addToVoteCount(-1, "surprisedCount", surprised_count);
+                    }
                 } else {
-                    Log.d(TAG, "changes color to pink");
+                    showSelectEmoticonDialog(v);
                     upvoteButton.setColorNormalResId(R.color.deep_sky_blue);
                     upvotedStories.add(name);
-                    addToVoteCount(+1);
+                    addToVoteCount(+1, "voteCount", vote_count);
                 }
                 SharedPreferences.Editor editor = mSharedPreferences.edit();
                 editor.putStringSet(Constants.UPVOTED_STORIES, upvotedStories);
+                editor.putStringSet(Constants.HAPPY_STORIES, happyStories);
+                editor.putStringSet(Constants.SAD_STORIES, sadStories);
+                editor.putStringSet(Constants.MAD_STORIES, madStories);
+                editor.putStringSet(Constants.SURPRISED_STORIES, surprisedStories);
                 editor.putString(Constants.CURRENT_USER_ID_KEY, currentUserID);
                 editor.apply();
 //                mSharedPreferences.getStringSet(Constants.UPVOTED_STORIES, upvotedStories);
@@ -218,12 +288,42 @@ public class ViewStoryActivity extends AppCompatActivity {
         storiesDB.child(name).addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
+                viewCount = dataSnapshot.getValue(DBStory.class).getViewCount();
+                addToViewCount();
                 if(!currentUser.equals(author)) {
                     TextView count = (TextView) findViewById(R.id.vote_count);
                     if(dataSnapshot.getValue(DBStory.class)!= null) {
                         if (dataSnapshot.getValue(DBStory.class).getVoteCount() != null) {
                             vote_count = dataSnapshot.getValue(DBStory.class).getVoteCount();
+                            happy_count = dataSnapshot.getValue(DBStory.class).getHappyCount();
+                            sad_count = dataSnapshot.getValue(DBStory.class).getSadCount();
+                            mad_count = dataSnapshot.getValue(DBStory.class).getMadCount();
+                            surprised_count = dataSnapshot.getValue(DBStory.class).getSurprisedCount();
                             count.setText("+" + dataSnapshot.getValue(DBStory.class).getVoteCount().toString());
+                            if(happy_count > 0){
+                                happy.setVisibility(View.VISIBLE);
+                            }else{
+                                happy.setVisibility(View.INVISIBLE);
+                            }
+
+                            if(sad_count > 0){
+                                sad.setVisibility(View.VISIBLE);
+                            }else{
+                                sad.setVisibility(View.INVISIBLE);
+                            }
+
+                            if(mad_count > 0){
+                                mad.setVisibility(View.VISIBLE);
+                            }else{
+                                mad.setVisibility(View.INVISIBLE);
+                            }
+
+                            if(surprised_count > 0){
+                                surprised.setVisibility(View.VISIBLE);
+                            }else{
+                                surprised.setVisibility(View.INVISIBLE);
+                            }
+
                         }
                     }
                 }
@@ -283,6 +383,20 @@ public class ViewStoryActivity extends AppCompatActivity {
             finish();
         }
 
+
+    }
+
+    public void addToViewCount(){
+        if(!seenStories.contains(name)){
+            seenStories.add(name);
+            viewCount += 1;
+            Log.d(TAG, "seenStories: "+seenStories);
+            storiesDB.child(name).child("viewCount").setValue(viewCount);
+            masterStoriesDB.child(name).child("viewCount").setValue(viewCount);
+        }
+        SharedPreferences.Editor editor = mSharedPreferences.edit();
+        editor.putStringSet(Constants.SEEN_STORIES, seenStories);
+        editor.apply();
     }
 
     @Override
@@ -292,6 +406,9 @@ public class ViewStoryActivity extends AppCompatActivity {
         if(credentialsRef.getAuth() == null) {
             finish();
         }
+
+
+
     }
 
     /**
@@ -591,6 +708,13 @@ public class ViewStoryActivity extends AppCompatActivity {
 
     private AmazonS3 s3;
     private final String MY_BUCKET = "astory-media";
+
+    @Override
+    public void onFinishedShowEmoticons(String name) {
+
+    }
+
+
     //Storing data
     private class UploadMedia extends AsyncTask<Void,Void,Void> {
 
@@ -674,14 +798,19 @@ public class ViewStoryActivity extends AppCompatActivity {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
                 result[0] = dataSnapshot.getValue(DBStory.class).getMediaUri();
-                if (result[0] != null) {
-                    if (dataSnapshot.getValue(DBStory.class).getMediaType().equals("video")) {
-                        ViewGroup.LayoutParams lp = webView.getLayoutParams();
-                        lp.height = (int) pxFromDp(getApplicationContext(), 400);
-                        webView.setLayoutParams(lp);
-                        webView.loadUrl(result[0]);
-                    }
+                if (oldURL == null || !oldURL.equals(result[0])) {
+                    Log.d(TAG, "oldURL: " + oldURL);
+                    oldURL = result[0];
+                    if (result[0] != null) {
+                        if (dataSnapshot.getValue(DBStory.class).getMediaType().equals("video")) {
+                            ViewGroup.LayoutParams lp = webView.getLayoutParams();
+                            lp.height = (int) pxFromDp(getApplicationContext(), 400);
+                            webView.setLayoutParams(lp);
+                            webView.loadUrl(result[0]);
 
+                        }
+
+                    }
                 }
 
             }
@@ -696,7 +825,10 @@ public class ViewStoryActivity extends AppCompatActivity {
 
     public void syncMedia(URL result){
         syncToFirebase(mediaType);
-        webView.loadUrl(result.toString());
+        if(oldURL == null || !oldURL.equals(result.toString())) {
+            oldURL = result.toString();
+            webView.loadUrl(result.toString());
+        }
 //        setResult(RESULT_OK, new Intent().putExtra(Constants.MEDIA_URL, result));
 //        Log.d(TAG, "Definitely called setResult");
     }
@@ -737,6 +869,7 @@ public class ViewStoryActivity extends AppCompatActivity {
         profileIntent.putExtra(Constants.PROFILE_NAME, author);
         profileIntent.putExtra(Constants.PROFILE_CURRENT_USER, currentUser);
         profileIntent.putExtra(Constants.PROFILE_AUTHOR, author);
+        Log.d(TAG, "story uid: "+uid);
         if(uid == null && currentUser.equals(author)){
             uid = currentUserID;
         }else{
@@ -753,14 +886,68 @@ public class ViewStoryActivity extends AppCompatActivity {
 
 
 
-    public void addToVoteCount(final int delta){
+    public void addToVoteCount(final int delta, String emoticon, int emoticon_count){
         vote_count+=delta;
-        storiesDB.child(name).child("voteCount").setValue(vote_count);
-        upvoteStoriesDB.child(name).child("voteCount").setValue(vote_count);
+        emoticon_count += delta;
+
+        if(!emoticon.equals("voteCount")) {
+            storiesDB.child(name).child(emoticon).setValue(emoticon_count);
+            upvoteStoriesDB.child(name).child(emoticon).setValue(emoticon_count);
+        }else{
+            storiesDB.child(name).child("voteCount").setValue(vote_count);
+            upvoteStoriesDB.child(name).child("voteCount").setValue(vote_count);
+        }
     }
 
     public static float pxFromDp(final Context context, final float dp) {
         return dp * context.getResources().getDisplayMetrics().density;
+    }
+
+    public void showSelectEmoticonDialog(View v){
+        SelectEmoticonFragment dialogFragment = new SelectEmoticonFragment();
+        dialogFragment.setListener(ViewStoryActivity.this);
+        dialogFragment.show(ViewStoryActivity.this.getSupportFragmentManager(), "SelectEmoticonFragment");
+    }
+
+    public void showDisplayEmoticonsDialog(View v){
+        ShowEmoticonsFragment dialogFragment = new ShowEmoticonsFragment();
+        dialogFragment.setListener(ViewStoryActivity.this);
+        dialogFragment.show(ViewStoryActivity.this.getSupportFragmentManager(), "ShowEmoticonsFragment");
+    }
+
+
+
+    @Override
+    public void onFinishedEmoticonSelection(String emoticon_name) {
+        SharedPreferences.Editor editor = mSharedPreferences.edit();
+        Log.d(TAG, "onFinishedEmoticonSelection name: "+emoticon_name);
+        switch (emoticon_name){
+            case "happy":
+                happy.setVisibility(View.VISIBLE);
+                addToVoteCount(1, "happyCount", happy_count);
+                happyStories.add(name);
+                editor.putStringSet(Constants.HAPPY_STORIES, happyStories);
+                break;
+            case "sad":
+                sad.setVisibility(View.VISIBLE);
+                addToVoteCount(1, "sadCount", sad_count);
+                sadStories.add(name);
+                editor.putStringSet(Constants.SAD_STORIES, sadStories);
+                break;
+            case "mad":
+                mad.setVisibility(View.VISIBLE);
+                addToVoteCount(1, "madCount", mad_count);
+                madStories.add(name);
+                editor.putStringSet(Constants.MAD_STORIES, madStories);
+                break;
+            case "surprised":
+                surprised.setVisibility(View.VISIBLE);
+                addToVoteCount(1, "surprisedCount", surprised_count);
+                surprisedStories.add(name);
+                editor.putStringSet(Constants.SURPRISED_STORIES, surprisedStories);
+                break;
+        }
+        editor.apply();
     }
 
 

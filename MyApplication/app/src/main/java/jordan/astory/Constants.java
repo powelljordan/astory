@@ -22,7 +22,7 @@ public final class Constants {
 
     public static final long GEOFENCE_EXPIRATION_IN_MILLISECONDS = GEOFENCING_EXPIRATION_IN_HOURS * 60 * 60 * 1000;
 
-    public static final float GEOFENCE_RADIUS_IN_METERS = 50;
+    public static final float GEOFENCE_RADIUS_IN_METERS = 60;
 
     public static final long UPDATE_INTERVAL_IN_MILLISECONDS = 7000;
     public static final long INACTIVE_UPDATE_INTERVAL_IN_MILLISECONDS = 30*60*1000;
@@ -69,8 +69,15 @@ public final class Constants {
     public final static String VIEW_STORY_KEY = "jordan.astory.STORY_KEY";
     public final static String EXTRA_STORY_COMMENT = "jordan.astory.STORY_COMMENT";
     public final static String UPVOTED_STORIES = "jordan.astory.UPVOTED_STORIES";
+    public final static String HAPPY_STORIES = "jordan.astory.HAPPY_STORIES";
+    public final static String SAD_STORIES = "jordan.astory.SAD_STORIES";
+    public final static String MAD_STORIES = "jordan.astory.MAD_STORIES";
+    public final static String SURPRISED_STORIES = "jordan.astory.SURPRISED_STORIES";
+    public final static String SEEN_STORIES = "jordan.astory.SEEN_STORIES";
+
 
     public final static String CURRENT_USER_ID = "jordan.astory.CURRENT_USER_ID";
+    public final static String CURRENT_STORY = "jordan.astory.CURRENT_STORY";
     final static String MY_ACTION = "MY_ACTION";
 
 

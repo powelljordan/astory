@@ -22,6 +22,9 @@ public class DBStory {
     private int happyCount;
     private int sadCount;
     private int madCount;
+    private int surprisedCount;
+    private int commentCount;
+    private int viewCount;
     public DBStory(){
 
     }
@@ -76,6 +79,18 @@ public class DBStory {
 
     public Integer getMadCount(){
         return madCount;
+    }
+
+    public Integer getSurprisedCount(){
+        return surprisedCount;
+    }
+
+    public Integer getCommentCount(){
+        return commentCount;
+    }
+
+    public Integer getViewCount(){
+        return viewCount;
     }
 
     @Override

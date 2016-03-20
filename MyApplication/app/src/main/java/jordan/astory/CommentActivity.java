@@ -30,6 +30,7 @@ public class CommentActivity extends Activity {
     FirebaseListAdapter mAdapter;
     Firebase masterRootRef;
     Firebase masterCommentsDB;
+    Firebase masterStoriesDB;
     String currentUser;
     String date;
     String postDate;
@@ -60,13 +61,16 @@ public class CommentActivity extends Activity {
         if(!date.equals("")){
             masterRootRef = new Firebase("https://astory.firebaseio.com/");
             masterCommentsDB = masterRootRef.child("comments").child(storyName);
+            masterStoriesDB = masterRootRef.child("stories").child(storyName);
         }else{
             masterRootRef = new Firebase("https://astory.firebaseio.com/"+today);
             masterCommentsDB = masterRootRef.child("comments").child(storyName);
+            masterStoriesDB = masterRootRef.child("stories").child(storyName);
         }
 ;
         final Firebase rootRef = new Firebase("https://astory.firebaseio.com/"+date);
         final Firebase commentsDB = rootRef.child("comments").child(storyName);
+        final Firebase storiesDB = rootRef.child("stories").child(storyName);
         mAdapter = new FirebaseListAdapter<DBComment>(this, DBComment.class, android.R.layout.two_line_list_item, commentsDB){
             @Override
             protected void populateView(View view, DBComment comment){
@@ -82,8 +86,10 @@ public class CommentActivity extends Activity {
             @Override
             public void onClick(View v){
                 commentsDB.push().setValue(new DBComment(currentUser, mMessage.getText().toString()));
+                storiesDB.child("commentCount").setValue(mAdapter.getCount() + 1);
                 if(postDate != null) {
                     masterCommentsDB.push().setValue(new DBComment(currentUser, mMessage.getText().toString()));
+                    masterStoriesDB.child("commentCount").setValue(mAdapter.getCount() + 1);
                 }
                 mMessage.setText("");
             }

@@ -29,6 +29,8 @@ public class UserStoriesAdapter extends ArrayAdapter<DBStory> {
         TextView title;
         TextView city;
         TextView date;
+        TextView commentCount;
+        TextView reactionCount;
     }
 
     public UserStoriesAdapter(Context context, int textViewResourceId, ArrayList<DBStory> stories){
@@ -74,6 +76,8 @@ public class UserStoriesAdapter extends ArrayAdapter<DBStory> {
             viewHolder.title = (TextView) row.findViewById(R.id.profile_story_title);
             viewHolder.city = (TextView) row.findViewById(R.id.profile_story_city);
             viewHolder.date = (TextView) row.findViewById(R.id.profile_story_date);
+            viewHolder.commentCount = (TextView) row.findViewById(R.id.profile_comment_count);
+            viewHolder.reactionCount = (TextView) row.findViewById(R.id.profile_reaction_count);
             row.setTag(viewHolder);
         }else{
             viewHolder = (UserStoriesViewHolder)row.getTag();
@@ -81,6 +85,21 @@ public class UserStoriesAdapter extends ArrayAdapter<DBStory> {
         DBStory story = getItem(position);
         viewHolder.title.setText(story.getName());
         viewHolder.date.setText(story.getDate());
+        Log.d(TAG, "reactionCount: " + viewHolder.reactionCount);
+        Log.d(TAG, "voteCount: "+story.getVoteCount());
+        if(story.getVoteCount() == null){
+            viewHolder.reactionCount.setText("0");
+        }else {
+            viewHolder.reactionCount.setText(Integer.toString(story.getVoteCount()));
+        }
+
+        if(story.getCommentCount() == null){
+            viewHolder.commentCount.setText("0");
+        }else {
+            viewHolder.commentCount.setText(Integer.toString(story.getCommentCount()));
+        }
+
+
         Geocoder gcd = new Geocoder(this.getContext(), Locale.getDefault());
         List<Address> addresses = null;
         try {
