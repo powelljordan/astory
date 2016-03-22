@@ -33,6 +33,7 @@ public class ProfileActivity extends Activity {
     String currentUserID;
     String author;
     String authorID;
+    String profileUserID;
     ArrayList<DBStory> stories;
     Firebase userDB = new Firebase("https://astory.firebaseio.com/users/");
     private SharedPreferences mSharedPreferences;
@@ -48,14 +49,15 @@ public class ProfileActivity extends Activity {
         user = intent.getStringExtra(Constants.PROFILE_NAME);
         currentUser = intent.getStringExtra(Constants.PROFILE_CURRENT_USER);
         author = intent.getStringExtra(Constants.PROFILE_AUTHOR);
-        authorID = intent.getStringExtra(Constants.EXTRA_STORY_UID);
+        profileUserID = intent.getStringExtra(Constants.PROFILE_ID);
         userName = (TextView)findViewById(R.id.user_name);
         userName.setText(user);
         listView = (ListView)findViewById(R.id.list);
         stories = new ArrayList<>();
         Log.d(TAG, stories.toString());
         Log.d(TAG, currentUserID);
-        Firebase userStoriesRef = userDB.child(authorID).child("stories");
+        Log.d(TAG, "profileUserID: " + profileUserID);
+        Firebase userStoriesRef = userDB.child(profileUserID).child("stories");
 
         final UserStoriesAdapter userStoriesAdapter = new UserStoriesAdapter(getBaseContext(), R.layout.profile_list_item, stories);
         listView.setAdapter(userStoriesAdapter);
@@ -63,10 +65,16 @@ public class ProfileActivity extends Activity {
         userStoriesRef.addChildEventListener(new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-                Log.d(TAG, dataSnapshot.getValue(DBStory.class).getName());
+                Log.d(TAG, "dataSnapshot: " + dataSnapshot);
+                if(dataSnapshot.getValue(DBStory.class).getId() == null){
+                    return;
+                }
                 stories.add(dataSnapshot.getValue(DBStory.class));
                 userStoriesAdapter.updateList(stories);
+                Log.d(TAG, "story.name: " + dataSnapshot.getValue(DBStory.class).getName() +
+                        "\n story.commentCount: " + dataSnapshot.getValue(DBStory.class).getCommentCount());
                 Log.d(TAG, "stories inside callback: " + stories);
+                Log.d(TAG, "stories voteCount " + stories);
             }
 
             @Override

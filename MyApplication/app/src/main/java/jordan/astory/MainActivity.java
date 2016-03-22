@@ -245,6 +245,9 @@ public class MainActivity extends FragmentActivity implements
             }
             updateMap();
             LatLng myLocation = new LatLng(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude());
+            if(mMap == null || myLocation == null){
+                return;
+            }
             mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(myLocation, Constants.MAP_ZOOM_LEVEL));
         }
     }
@@ -311,7 +314,7 @@ public class MainActivity extends FragmentActivity implements
                     if (dbStory != null) {
                         boolean alreadyAddedStory = false;
                         for (Story localStory : storyList) {
-                            if (dbStory.getName().equals(localStory.name)) {
+                            if (dbStory.getId().equals(localStory.id)) {
 //                                Log.d(TAG, dbStory.getName() + " story already in storyList");
                                 alreadyAddedStory = true;
                             }
@@ -320,6 +323,7 @@ public class MainActivity extends FragmentActivity implements
                             Log.d(TAG, "adding "+dbStory.getName()+" to storyList");
                             Story story = new Story();
                             Log.d(TAG, dbStory.getName());
+                            story.id = dbStory.getId();
                             story.name = dbStory.getName();
                             story.content = dbStory.getContent();
                             story.date = dbStory.getDate();
@@ -699,7 +703,7 @@ public class MainActivity extends FragmentActivity implements
             mGeofenceList.add(new Geofence.Builder()
                     // Set the request ID of the geofence. This is a string to identify this
                     // geofence.
-                    .setRequestId(story.name)
+                    .setRequestId(story.id)
 
                             // Set the circular region of this geofence.
                     .setCircularRegion(
@@ -737,29 +741,30 @@ public class MainActivity extends FragmentActivity implements
 
     public void addStoryToDB(Story story){
         HashMap<String, String> storyObj = new HashMap<String, String>();
+        storyObj.put("id",story.id);
         storyObj.put("name", story.name);
         storyObj.put("content", story.content);
         storyObj.put("date", story.date);
         storyObj.put("latitude", Double.toString(story.location.latitude));
         storyObj.put("longitude", Double.toString(story.location.longitude));
         storyObj.put("author", story.author);
-        storyObj.put("uid", currentUserID);
+        storyObj.put("uid", story.uid);
 //        Log.d(TAG, "addStoryToDB is in fact getting called");
-        Firebase storyRef = storiesDB.child(story.name);
+        Firebase storyRef = storiesDB.child(story.id);
         Firebase userRef = usersDB.child(currentUserID);
         Log.d(TAG, "currentUserStories" + currentUserStories);
-        currentUserStories.add(story.name);
-        userRef.child("stories").child(story.name).setValue(storyObj);
+        currentUserStories.add(story.id);
+        userRef.child("stories").child(story.id).setValue(storyObj);
         storyRef.setValue(storyObj);
         Log.d(TAG, "Date's broken. It equals " + date);
         if(!date.equals("")) {
-            masterRootRef.child("stories").child(story.name).setValue(storyObj);
-            masterGeoFire.setLocation(story.name, new GeoLocation(story.location.latitude, story.location.longitude));
+            masterRootRef.child("stories").child(story.id).setValue(storyObj);
+            masterGeoFire.setLocation(story.id, new GeoLocation(story.location.latitude, story.location.longitude));
         }else{
-            todayRootRef.child("stories").child(story.name).setValue(storyObj);
-            todayGeoFire.setLocation(story.name,new GeoLocation(story.location.latitude, story.location.longitude));
+            todayRootRef.child("stories").child(story.id).setValue(storyObj);
+            todayGeoFire.setLocation(story.id,new GeoLocation(story.location.latitude, story.location.longitude));
         }
-        geoFire.setLocation(story.name, new GeoLocation(story.location.latitude, story.location.longitude));
+        geoFire.setLocation(story.id, new GeoLocation(story.location.latitude, story.location.longitude));
     }
 
     public void removeStory(Story story) {
@@ -772,14 +777,14 @@ public class MainActivity extends FragmentActivity implements
 //        storiesDB.child(story.name).removeValue();
 //        commentsDB.child(story.name).removeValue();
         if(!date.equals("")){
-            masterStoriesDB.child(story.name).removeValue();
-            masterGeoFire.removeLocation(story.name);
+            masterStoriesDB.child(story.id).removeValue();
+            masterGeoFire.removeLocation(story.id);
         }else{
-            todayRootRef.child("stories").child(story.name).removeValue();
-            todayGeoFire.removeLocation(story.name);
+            todayRootRef.child("stories").child(story.id).removeValue();
+            todayGeoFire.removeLocation(story.id);
         }
         Firebase userRef = usersDB.child(currentUserID);
-        userRef.child(story.name).removeValue();
+        userRef.child(story.id).removeValue();
         storyList.remove(story);
 //        mMap.clear();
     }
@@ -801,7 +806,7 @@ public class MainActivity extends FragmentActivity implements
             mGeofenceList.add(new Geofence.Builder()
                     // Set the request ID of the geofence. This is a string to identify this
                     // geofence.
-                    .setRequestId(story.name)
+                    .setRequestId(story.id)
 
                             // Set the circular region of this geofence.
                     .setCircularRegion(
@@ -864,7 +869,7 @@ public class MainActivity extends FragmentActivity implements
     }
 
     public void updateMap(){
-        if(mCurrentLocation == null){
+        if(mCurrentLocation == null || mMap == null){
             return;
         }
         LatLng myLocation = new LatLng(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude());
@@ -904,6 +909,7 @@ public class MainActivity extends FragmentActivity implements
 
     public void goToViewStoryScreen(Story story){
         Intent viewStoryIntent = new Intent(this, ViewStoryActivity.class);
+        viewStoryIntent.putExtra(Constants.EXTRA_STORY_ID, story.id);
         viewStoryIntent.putExtra(Constants.EXTRA_STORY_NAME, story.name);
         viewStoryIntent.putExtra(Constants.EXTRA_STORY_CONTENT, story.content);
         viewStoryIntent.putExtra(Constants.EXTRA_STORY_AUTHOR, story.author);
@@ -931,7 +937,7 @@ public class MainActivity extends FragmentActivity implements
             Toast.makeText(getApplicationContext(), "Sorry, your stories aren't available right now", Toast.LENGTH_SHORT).show();
             return;
         }
-        profileIntent.putExtra(Constants.EXTRA_STORY_UID, currentUserID);
+        profileIntent.putExtra(Constants.PROFILE_ID, currentUserID);
         startActivity(profileIntent);
 
     }
@@ -1014,6 +1020,7 @@ public class MainActivity extends FragmentActivity implements
             Story story = new Story();
             story.name = name;
             story.content = content;
+            story.id=name+currentUserID+System.currentTimeMillis();
             SimpleDateFormat s = new SimpleDateFormat("MMMM dd, yyyy", Locale.US);
             story.date = s.format(new Date());
             story.location = new LatLng(mCurrentLocation.getLatitude(),
@@ -1021,7 +1028,7 @@ public class MainActivity extends FragmentActivity implements
             story.radius = Constants.GEOFENCE_RADIUS_IN_METERS;
 //            Log.d(TAG, currentUser.toString());
             story.author = currentUser.getUsername();
-            story.uid = currentUserID;
+            story.uid = masterRootRef.getAuth().getUid();
             addStoryToGeofenceList(story);
         addStoryGeofence();
 //            Log.d(TAG, "Definitely calls onFinishedInputDialog");
@@ -1054,7 +1061,7 @@ public class MainActivity extends FragmentActivity implements
 //        Log.d(TAG, "updateViewableStories id: " + id + "\n transition: " + transition);
         if(transition == Geofence.GEOFENCE_TRANSITION_ENTER){
             for(Story story: storyList){
-                if(story.name.equals(id)){
+                if(story.id.equals(id)){
                     story.marker.setIcon(BitmapDescriptorFactory.fromResource(getResource(story)));
                     story.active = true;
                 }
@@ -1062,7 +1069,7 @@ public class MainActivity extends FragmentActivity implements
         }
         if(transition == Geofence.GEOFENCE_TRANSITION_EXIT){
             for(Story story: storyList){
-                if(story.name.equals(id)){
+                if(story.id.equals(id)){
                     story.marker.setIcon(BitmapDescriptorFactory.fromResource(R.mipmap.seen_marker64));
                     story.active = false;
                 }

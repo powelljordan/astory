@@ -8,6 +8,7 @@ import com.google.android.gms.maps.model.Marker;
  * Created by Jordan on 12/29/2015.
  */
 public class Story {
+    public String id;
     public String name;
     public String content;
     public String author;

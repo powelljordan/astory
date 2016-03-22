@@ -94,29 +94,8 @@ public class RegisterFragment extends DialogFragment {
                                 Toast.makeText(getContext(), "Please enter text into both fields", Toast.LENGTH_SHORT).show();
                             }
 
-                            EditText searchTo = (EditText)d.findViewById(R.id.fragment_email);
-                            searchTo.addTextChangedListener(new TextWatcher() {
+//                            EditText searchTo = (EditText)d.findViewById(R.id.fragment_email);
 
-                                @Override
-                                public void afterTextChanged(Editable s) {
-                                    // TODO Auto-generated method stub
-
-                                }
-
-                                @Override
-                                public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-                                    // TODO Auto-generated method stub
-
-                                }
-
-                                @Override
-                                public void onTextChanged(CharSequence s, int start, int before, int count) {
-
-                                    usernameEditText.setText(s);
-
-                                }
-
-                            });
                         }
                     }
 
@@ -138,7 +117,7 @@ public class RegisterFragment extends DialogFragment {
 
     public class ViewHolder {
         public void populate(View v) {
-            usernameEditText = (EditText) v.findViewById(R.id.fragment_username);
+//            usernameEditText = (EditText) v.findViewById(R.id.fragment_username);
             emailEditText = (EditText)v.findViewById(R.id.fragment_email);
             passwordEditText = (EditText)v.findViewById(R.id.fragment_password);
         }

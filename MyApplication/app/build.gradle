@@ -9,8 +9,8 @@ android {
         applicationId "jordan.astory"
         minSdkVersion 16
         targetSdkVersion 23
-        versionCode 1
-        versionName "1.0"
+        versionCode 3
+        versionName "1.2"
     }
     buildTypes {
         release {
@@ -40,6 +40,7 @@ dependencies {
     compile 'com.amazonaws:aws-android-sdk-core:2.+'
     compile 'com.amazonaws:aws-android-sdk-cognito:2.+'
     compile 'com.amazonaws:aws-android-sdk-s3:2.+'
+    compile 'com.google.android.gms:play-services-gcm:8.3.0'
     compile 'com.pushbots:pushbots-lib:2.0.13@aar'
 
 
@@ -47,6 +48,7 @@ dependencies {
 
 
 //    compile 'com.facebook.android:facebook-android-sdk:4.6.0'
+    compile 'com.facebook.android:facebook-android-sdk:[4,5)'
     compile 'com.google.android.gms:play-services-auth:8.3.0'
 //    compile 'org.twitter4j:twitter4j-core:4.0.2'
 

@@ -131,7 +131,16 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:visibility="invisible"
                 android:id="@+id/view_story_webview"></WebView>
+            <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/view_story_imageview"/>
+            <VideoView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/view_story_videoview"/>
 
         </LinearLayout>
     </ScrollView>

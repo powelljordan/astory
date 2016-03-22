@@ -9,6 +9,8 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
+import android.media.AudioManager;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -33,7 +35,9 @@ import android.widget.Toast;
 import android.widget.VideoView;
 
 import com.amazonaws.auth.CognitoCachingCredentialsProvider;
+import com.amazonaws.mobileconnectors.s3.transferutility.TransferListener;
 import com.amazonaws.mobileconnectors.s3.transferutility.TransferObserver;
+import com.amazonaws.mobileconnectors.s3.transferutility.TransferState;
 import com.amazonaws.mobileconnectors.s3.transferutility.TransferUtility;
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
@@ -45,6 +49,8 @@ import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
 import com.firebase.client.FirebaseError;
 import com.firebase.client.ValueEventListener;
+import com.firebase.geofire.GeoFire;
+import com.firebase.ui.auth.core.FirebaseLoginBaseActivity;
 import com.getbase.floatingactionbutton.FloatingActionButton;
 import com.getbase.floatingactionbutton.FloatingActionsMenu;
 import com.google.android.gms.location.Geofence;
@@ -53,6 +59,10 @@ import com.google.android.gms.location.GeofencingRequest;
 import org.w3c.dom.Text;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.ParseException;
@@ -79,7 +89,9 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
 
     private Uri fileUri; // file url to store image/video
     private URL fileURL;
+    private String filePath;
     private String name;
+    private String storyId;
     private String content;
     private String author;
     private String uid;
@@ -111,16 +123,17 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
     private ImageView happy, sad, mad, surprised;
     private Firebase rootRef;
     private Firebase storiesDB;
-    private Firebase geoStoriesDB;
+    private GeoFire geoStoriesDB;
     private Firebase commentsDB;
     private Firebase masterRootRef;
     private Firebase masterStoriesDB;
-    private Firebase masterGeoStoriesDB;
+    private GeoFire masterGeoStoriesDB;
     private Firebase masterCommentsDB;
     private Firebase upvoteRootRef;
     private Firebase upvoteStoriesDB;
     private Firebase upvoteGeoStoriesDB;
     private Firebase upvoteCommentsDB;
+    private Firebase notificationsDB;
     private Uri.Builder builder;
     private String oldURL;
 
@@ -145,12 +158,18 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
         currentUserID = mSharedPreferences.getString(Constants.CURRENT_USER_ID_KEY, "N/A");
         //Story details
         name = intent.getStringExtra(Constants.EXTRA_STORY_NAME);
+        storyId = intent.getStringExtra(Constants.EXTRA_STORY_ID);
         content = intent.getStringExtra(Constants.EXTRA_STORY_CONTENT);
         author = intent.getStringExtra(Constants.EXTRA_STORY_AUTHOR);
         uid = intent.getStringExtra(Constants.EXTRA_STORY_UID);
         date = intent.getStringExtra(Constants.EXTRA_STORY_DATE);
         currentUser = intent.getStringExtra(Constants.EXTRA_CURRENT_USER);
         dateKey = intent.getStringExtra(Constants.EXTRA_STORY_DATE_KEY);
+
+
+
+
+
 
         //Parse Date
         SimpleDateFormat s = new SimpleDateFormat("MMMM dd, yyyy", Locale.US);
@@ -172,7 +191,7 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
         loadMedia();
         //Delete move button
         deleteButton = (ImageButton) findViewById(R.id.delete_story_button);
-        if(currentUser.equals(author)){
+        if(currentUserID.equals(uid)){
             deleteButton.setVisibility(View.VISIBLE);
         }
 
@@ -211,7 +230,7 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
         mSharedPreferences.getStringSet(Constants.SEEN_STORIES, seenStories);
 
         editor.putStringSet(Constants.SURPRISED_STORIES, surprisedStories);
-        editor.putString(Constants.CURRENT_STORY, name);
+        editor.putString(Constants.CURRENT_STORY, storyId);
         editor.apply();
 
         FloatingActionButton commentButton = (FloatingActionButton)findViewById(R.id.comment);
@@ -221,7 +240,7 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
         upvotedStories = new HashSet<>(mSharedPreferences.getStringSet(Constants.UPVOTED_STORIES, new HashSet<String>()));
 //        mSharedPreferences.getStringSet(Constants.UPVOTED_STORIES, upvotedStories);
         Log.d(TAG, "onCreate upvotedStories: " + upvotedStories);
-        if(upvotedStories.contains(name)){
+        if(upvotedStories.contains(storyId)){
             upvoteButton.setColorNormalResId(R.color.deep_sky_blue);
             Log.d(TAG, "should be blue");
         }
@@ -243,31 +262,35 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
                 Log.d(TAG, "sadStories: " + sadStories);
                 Log.d(TAG, "madStories: "+madStories);
                 Log.d(TAG, "surprisedStories: "+surprisedStories);
-                if (upvotedStories.contains(name)) {
-                    Log.d(TAG, "upVotedStories contains name");
+                if(uid == null){
+                    Toast.makeText(getApplicationContext(), "Sorry you can't upvote this story right now", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (upvotedStories.contains(storyId)) {
+                    Log.d(TAG, "upVotedStories contains storyId");
                     upvoteButton.setColorNormalResId(R.color.white);
-                    upvotedStories.remove(name);
+                    upvotedStories.remove(storyId);
                     addToVoteCount(-1, "voteCount", vote_count);
-                    if(happyStories.contains(name)){
-                        happyStories.remove(name);
+                    if(happyStories.contains(storyId)){
+                        happyStories.remove(storyId);
                         addToVoteCount(-1, "happyCount", happy_count);
                     }
-                    if(sadStories.contains(name)){
-                        sadStories.remove(name);
+                    if(sadStories.contains(storyId)){
+                        sadStories.remove(storyId);
                         addToVoteCount(-1, "sadCount", sad_count);
                     }
-                    if(madStories.contains(name)){
-                        madStories.remove(name);
+                    if(madStories.contains(storyId)){
+                        madStories.remove(storyId);
                         addToVoteCount(-1, "madCount", mad_count);
                     }
-                    if(surprisedStories.contains(name)){
-                        surprisedStories.remove(name);
+                    if(surprisedStories.contains(storyId)){
+                        surprisedStories.remove(storyId);
                         addToVoteCount(-1, "surprisedCount", surprised_count);
                     }
                 } else {
                     showSelectEmoticonDialog(v);
                     upvoteButton.setColorNormalResId(R.color.deep_sky_blue);
-                    upvotedStories.add(name);
+                    upvotedStories.add(storyId);
                     addToVoteCount(+1, "voteCount", vote_count);
                 }
                 SharedPreferences.Editor editor = mSharedPreferences.edit();
@@ -285,12 +308,15 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
 
 
         final Firebase storyRef = new Firebase("https://astory.firebaseio.com").child("stories");
-        storiesDB.child(name).addValueEventListener(new ValueEventListener() {
+        storiesDB.child(storyId).addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
+                if(dataSnapshot.getValue(DBStory.class) == null){
+                    return;
+                }
                 viewCount = dataSnapshot.getValue(DBStory.class).getViewCount();
                 addToViewCount();
-                if(!currentUser.equals(author)) {
+                if(!currentUserID.equals(uid)) {
                     TextView count = (TextView) findViewById(R.id.vote_count);
                     if(dataSnapshot.getValue(DBStory.class)!= null) {
                         if (dataSnapshot.getValue(DBStory.class).getVoteCount() != null) {
@@ -335,7 +361,7 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
             }
         });
 
-        if(currentUser.equals(author)){
+        if(currentUserID.equals(uid)){
             upvoteButton.setVisibility(View.GONE);
         }else{
             pictureButton.setVisibility(View.GONE);
@@ -386,13 +412,15 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
 
     }
 
+
+
     public void addToViewCount(){
-        if(!seenStories.contains(name)){
-            seenStories.add(name);
+        if(!seenStories.contains(storyId)){
+            seenStories.add(storyId);
             viewCount += 1;
             Log.d(TAG, "seenStories: "+seenStories);
-            storiesDB.child(name).child("viewCount").setValue(viewCount);
-            masterStoriesDB.child(name).child("viewCount").setValue(viewCount);
+            storiesDB.child(storyId).child("viewCount").setValue(viewCount);
+            masterStoriesDB.child(storyId).child("viewCount").setValue(viewCount);
         }
         SharedPreferences.Editor editor = mSharedPreferences.edit();
         editor.putStringSet(Constants.SEEN_STORIES, seenStories);
@@ -416,7 +444,7 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
      * @param intent
      */
     private void handleCaptureButtons(Intent intent){
-        storiesDB.child(name)
+        storiesDB.child(storyId)
                 .addValueEventListener(new ValueEventListener() {
                     @Override
                     public void onDataChange(DataSnapshot dataSnapshot) {
@@ -431,26 +459,27 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
                             mediaType = dbStory.getMediaType();
                             if (mediaType.equals("image")) {
                                 syncMedia(fileURL);
+                                loadMedia();
 
-                            }
-                            else if (mediaType.equals("video")){
+                            } else if (mediaType.equals("video")) {
                                 syncMedia(fileURL);
+                                loadMedia();
                             }
-                        }
-                        else if(dbStory != null && dbStory.getMediaType()!=null&& !mediaUpToDate(dbStory)){
+                        } else if (dbStory != null && dbStory.getMediaType() != null && !mediaUpToDate(dbStory)) {
                             mediaType = dbStory.getMediaType();
-                            if(dbStory.getMediaType().equals("image")){
+                            Log.d(TAG, "media Type: " + mediaType);
+                            if (dbStory.getMediaType().equals("image")) {
                                 new getUri().execute("image/jpeg");
-                                storiesDB.child(name).child("mediaUpdated").setValue(System.currentTimeMillis());
-                                if(date != null) {
-                                    masterStoriesDB.child(name).child("mediaUpdated").setValue(System.currentTimeMillis());
+                                storiesDB.child(storyId).child("mediaUpdated").setValue(System.currentTimeMillis());
+                                if (date != null) {
+                                    masterStoriesDB.child(storyId).child("mediaUpdated").setValue(System.currentTimeMillis());
 
                                 }
-                            }else if(dbStory.getMediaType().equals("video")){
+                            } else if (dbStory.getMediaType().equals("video")) {
                                 new getUri().execute("video/mp4");
-                                storiesDB.child(name).child("mediaUpdated").setValue(System.currentTimeMillis());
-                                if(date != null) {
-                                    masterStoriesDB.child(name).child("mediaUpdated").setValue(System.currentTimeMillis());
+                                storiesDB.child(storyId).child("mediaUpdated").setValue(System.currentTimeMillis());
+                                if (date != null) {
+                                    masterStoriesDB.child(storyId).child("mediaUpdated").setValue(System.currentTimeMillis());
                                 }
                             }
 
@@ -464,18 +493,25 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
                 });
     }
     public void handleDatabase(String date){
+        notificationsDB = new Firebase("https://astory.firebaseio.com/notifications");
         rootRef = new Firebase("https://astory.firebaseio.com/"+date);
         storiesDB = rootRef.child("stories");
+        Log.d(TAG, "currentUser: " + currentUser + "\n author: "+author);
+        if(currentUserID.equals(uid)) {
+            Firebase credentialsRef = new Firebase("https://astory.firebaseio.com");
+            storiesDB.child(storyId).child("uid").setValue(credentialsRef.getAuth().getUid());
+        }
         commentsDB = rootRef.child("comments");
-        geoStoriesDB = rootRef.child("geoStories");
+        geoStoriesDB = new GeoFire(rootRef.child("geoStories"));
+        upvoteRootRef = new Firebase("https://astory.firebaseio.com");
         if(!date.equals("")){
             masterRootRef = new Firebase("https://astory.firebaseio.com");
             masterStoriesDB = masterRootRef.child("stories");
-            upvoteRootRef = new Firebase("https://astory.firebaseio.com");
+
         }else{
             masterRootRef = new Firebase("https://astory.firebaseio.com/"+today);
             masterStoriesDB = masterRootRef.child("stories");
-            storiesDB.child(name).addListenerForSingleValueEvent(new ValueEventListener() {
+            storiesDB.child(storyId).addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override
                 public void onDataChange(DataSnapshot dataSnapshot) {
                     String originalDate = dataSnapshot.getValue(DBStory.class).getDate();
@@ -495,7 +531,7 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
                     String storyDate = s2.format(d);
                     upvoteRootRef = new Firebase("https://astory.firebaseio.com/"+storyDate);
                     upvoteStoriesDB = upvoteRootRef.child("stories");
-                    upvoteGeoStoriesDB = upvoteRootRef.child("geoStories");
+//                    upvoteGeoStoriesDB = upvoteRootRef.child("geoStories");
                     upvoteCommentsDB = upvoteRootRef.child("comments");
                 }
 
@@ -505,6 +541,12 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
                 }
             });
         }
+        masterGeoStoriesDB = new GeoFire(masterRootRef.child("geoStories"));
+        masterCommentsDB = masterRootRef.child("comments");
+        if(currentUserID.equals(uid)) {
+            Firebase credentialsRef = new Firebase("https://astory.firebaseio.com");
+            storiesDB.child(storyId).child("uid").setValue(credentialsRef.getAuth().getUid());
+        }
 
     }
 
@@ -512,14 +554,10 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
      * Checking device has camera hardware or not
      * */
     private boolean isDeviceSupportCamera() {
-        if (getApplicationContext().getPackageManager().hasSystemFeature(
-                PackageManager.FEATURE_CAMERA)) {
-            // this device has a camera
-            return true;
-        } else {
-            // no camera on this device
-            return false;
-        }
+        // this device has a camera
+// no camera on this device
+        return getApplicationContext().getPackageManager().hasSystemFeature(
+                PackageManager.FEATURE_CAMERA);
     }
     /**
      * Capturing Camera Image will lauch camera app requrest image capture
@@ -580,15 +618,46 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         // if the result is capturing Image
+        Bitmap bitmap = null;
+
         if (requestCode == CAMERA_CAPTURE_IMAGE_REQUEST_CODE) {
             if (resultCode == RESULT_OK) {
                 // successfully captured the image
-                // display it in image view
+//                // compress it and save it in the same location
+//                FileOutputStream fos = null;
+//                try {
+//                    bitmap = BitmapFactory.decodeStream(new FileInputStream(getOutputMediaFile(MEDIA_TYPE_IMAGE)));
+//                    fos = new FileOutputStream(filePath);
+//                    bitmap.compress(Bitmap.CompressFormat.JPEG, 25, fos);
+//                    fos.flush();
+//                    fos.close();
+//                } catch (FileNotFoundException e1) {
+//                    e1.printStackTrace();
+//                }catch (IOException e) {
+//                    e.printStackTrace();
+//                }
+
+//                // display it in web view
+//                Log.d(TAG, "absolute path: "+getOutputMediaFile(MEDIA_TYPE_IMAGE).getAbsolutePath());
+                webView.setVisibility(View.INVISIBLE);
+//                ImageView myImage = (ImageView) findViewById(R.id.view_story_imageview);
+//                Bitmap myBitmap = BitmapFactory.decodeFile(new File(filePath).getAbsolutePath());
+//                myImage.setImageBitmap(myBitmap);
+//                int nh = (int) ( myBitmap.getHeight() * (2000.0 / myBitmap.getWidth()) );
+//                Bitmap scaled = Bitmap.createScaledBitmap(myBitmap, 2000, nh, true);
+//                Matrix matrix = new Matrix();
+//
+//                matrix.postRotate(90);
+//
+//                Bitmap scaledBitmap = Bitmap.createScaledBitmap(scaled,scaled.getWidth(),scaled.getHeight(),true);
+//
+//                Bitmap rotated = Bitmap.createBitmap(scaledBitmap , 0, 0, scaledBitmap .getWidth(), scaledBitmap .getHeight(), matrix, true);
+//                myImage.setImageBitmap(rotated);
                 new UploadMedia().execute();
                 mediaType = "image";
-                storiesDB.child(name).child("mediaUpdated").setValue(System.currentTimeMillis());
+                storiesDB.child(storyId).child("mediaUpdated").setValue(System.currentTimeMillis());
                 if(date != null) {
-                    masterStoriesDB.child(name).child("mediaUpdated").setValue(System.currentTimeMillis());
+                    masterStoriesDB.child(storyId).child("mediaUpdated").setValue(System.currentTimeMillis());
                 }
                 new getUri().execute("image/jpeg");
             } else if (resultCode == RESULT_CANCELED) {
@@ -606,11 +675,15 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
             if (resultCode == RESULT_OK) {
                 // video successfully recorded
                 // preview the recorded video
+                webView.setVisibility(View.INVISIBLE);
+                VideoView myVideoView = (VideoView) findViewById(R.id.view_story_videoview);
+                Log.d(TAG, "Set video URI");
+                myVideoView.setVideoURI(fileUri);
                 new UploadMedia().execute();
                 mediaType = "video";
                 storiesDB.child(name).child("mediaUpdated").setValue(System.currentTimeMillis());
                 if(date != null) {
-                    masterStoriesDB.child(name).child("mediaUpdated").setValue(System.currentTimeMillis());
+                    masterStoriesDB.child(storyId).child("mediaUpdated").setValue(System.currentTimeMillis());
                 }
                 new getUri().execute("video/mp4");
             } else if (resultCode == RESULT_CANCELED) {
@@ -665,8 +738,9 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
                 Locale.getDefault()).format(new Date());
 
         if (type == MEDIA_TYPE_IMAGE) {
-            mediaFile = new File(mediaStorageDir.getPath() + File.separator
-                    + "IMG_" + timeStamp + ".jpg");
+            filePath = mediaStorageDir.getPath() + File.separator
+                    + "IMG_" + timeStamp + ".jpg";
+            mediaFile = new File(filePath);
         } else if (type == MEDIA_TYPE_VIDEO) {
             mediaFile = new File(mediaStorageDir.getPath() + File.separator
                     + "VID_" + timeStamp + ".mp4");
@@ -683,7 +757,7 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
             return false;
         }
         else{
-            if((System.currentTimeMillis() - Double.parseDouble(story.getMediaUpdated())) < 59*60*1000){
+            if((System.currentTimeMillis() - Double.parseDouble(story.getMediaUpdated())) < 15*60*1000){
                 Log.d(TAG, "last updated "+(System.currentTimeMillis() - Double.parseDouble(story.getMediaUpdated())));
                 return true;
             }else{
@@ -695,11 +769,11 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
         Log.d(TAG, "syncToFirebase called");
         Log.d(TAG, storiesDB.toString());
         Log.d(TAG, masterStoriesDB.toString());
-        storiesDB.child(name).child("mediaType").setValue(uriType);
-        storiesDB.child(name).child("mediaUri").setValue(fileURL);
+        storiesDB.child(storyId).child("mediaType").setValue(uriType);
+        storiesDB.child(storyId).child("mediaUri").setValue(fileURL);
         if(date != null){
-            masterStoriesDB.child(name).child("mediaType").setValue(uriType);
-            masterStoriesDB.child(name).child("mediaUri").setValue(fileURL);
+            masterStoriesDB.child(storyId).child("mediaType").setValue(uriType);
+            masterStoriesDB.child(storyId).child("mediaUri").setValue(fileURL);
         }
 
 
@@ -735,9 +809,33 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
 
             TransferObserver observer = transferUtility.upload(
                     MY_BUCKET,
-                    name,
+                    storyId,
                     mediaFile
             );
+
+
+            observer.setTransferListener(new TransferListener() {
+
+                @Override
+                public void onStateChanged(int id, TransferState state){
+                //Do something on state change
+                    Log.d(TAG, "transfer state: " + state);
+                    if(state.equals(TransferState.COMPLETED)){
+                        loadMedia();
+                    }
+                }
+
+                @Override
+                public void onProgressChanged(int id, long bytesCurrent, long bytesTotal) {
+                //Do something on progress change.
+                    Log.d(TAG, "progress: "+((float)bytesCurrent/bytesTotal*100));
+                }
+
+                @Override
+                public void onError(int id, Exception ex) {
+//Do something on error
+                }
+            });
             return null;
         }
     }
@@ -748,11 +846,10 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
         protected URL doInBackground(String... types) {
             ResponseHeaderOverrides override = new ResponseHeaderOverrides();
             override.setContentType(types[0]);
-            GeneratePresignedUrlRequest urlRequest = new GeneratePresignedUrlRequest( MY_BUCKET, name);
+            GeneratePresignedUrlRequest urlRequest = new GeneratePresignedUrlRequest( MY_BUCKET, storyId);
             urlRequest.setExpiration(new Date(System.currentTimeMillis() + 7*24*60*60*1000 ) );  // Added a week's worth of milliseconds to the current time.
             urlRequest.setResponseHeaders(override);
-            URL url = s3.generatePresignedUrl(urlRequest);
-            return url;
+            return s3.generatePresignedUrl(urlRequest);
         }
 
         @Override
@@ -760,6 +857,7 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
             fileURL = result;
             Log.d(TAG, "Does this even happen: " + result.toString());
             syncMedia(result);
+
 //            previewCapturedImage();
         }
     }
@@ -772,7 +870,7 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
                 .setMessage("Are you sure you want to delete this story?")
                 .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int which) {
-                        setResult(RESULT_OK, new Intent().putExtra(Constants.VIEW_STORY_KEY, name));
+                        setResult(RESULT_OK, new Intent().putExtra(Constants.VIEW_STORY_KEY, storyId));
                         removeStory();
                         finish();
                     }
@@ -788,30 +886,46 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
     }
 
     public void loadMedia(){
+        webView.setVisibility(View.VISIBLE);
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setUseWideViewPort(true);
         webView.getSettings().setLoadWithOverviewMode(true);
 //        webView.setLayerType(WebView.LAYER_TYPE_SOFTWARE, null);
         Firebase storyRef = new Firebase("https://astory.firebaseio.com").child("stories");
         final String[] result = new String[1];
-        storyRef.child(name).addValueEventListener(new ValueEventListener() {
+        storyRef.child(storyId).addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
+                if(dataSnapshot.getValue(DBStory.class) == null){
+                    return;
+                }
                 result[0] = dataSnapshot.getValue(DBStory.class).getMediaUri();
-                if (oldURL == null || !oldURL.equals(result[0])) {
+                Log.d(TAG, "actual URL: "+result[0]);
+//                if (oldURL == null) {
                     Log.d(TAG, "oldURL: " + oldURL);
                     oldURL = result[0];
+
                     if (result[0] != null) {
                         if (dataSnapshot.getValue(DBStory.class).getMediaType().equals("video")) {
                             ViewGroup.LayoutParams lp = webView.getLayoutParams();
                             lp.height = (int) pxFromDp(getApplicationContext(), 400);
                             webView.setLayoutParams(lp);
-                            webView.loadUrl(result[0]);
+                            Log.d(TAG, "loaded URL");
+                            if(oldURL == null || !oldURL.equals(result.toString())) {
+                                oldURL = result.toString();
+                                webView.loadUrl(result[0]);
+                            }
+
 
                         }
-
+                        if(dataSnapshot.getValue(DBStory.class).getMediaType().equals("image")){
+                            if(oldURL == null || !oldURL.equals(result.toString())) {
+                                oldURL = result.toString();
+                                webView.loadUrl(result[0]);
+                            }
+                        }
                     }
-                }
+//                }
 
             }
 
@@ -827,7 +941,6 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
         syncToFirebase(mediaType);
         if(oldURL == null || !oldURL.equals(result.toString())) {
             oldURL = result.toString();
-            webView.loadUrl(result.toString());
         }
 //        setResult(RESULT_OK, new Intent().putExtra(Constants.MEDIA_URL, result));
 //        Log.d(TAG, "Definitely called setResult");
@@ -836,32 +949,35 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
 
 
     public void removeStory(){
-        storiesDB.child(name).removeValue();
-        geoStoriesDB.child(name).removeValue();
-        commentsDB.child(name).removeValue();
-        masterStoriesDB.child(name).removeValue();
-        masterGeoStoriesDB.child(name).removeValue();
-        masterCommentsDB.child(name).removeValue();
+        storiesDB.child(storyId).removeValue();
+        geoStoriesDB.removeLocation(storyId);
+        commentsDB.child(storyId).removeValue();
+        Firebase userDB = new Firebase("https://astory.firebaseio.com/users");
+        userDB.child(uid).child("stories").child(storyId).removeValue();
+        masterStoriesDB.child(storyId).removeValue();
+        masterGeoStoriesDB.removeLocation(storyId);
+        masterCommentsDB.child(storyId).removeValue();
     }
 
     public void goToComments(View v){
         Intent commentIntent = new Intent(this, CommentActivity.class);
+        commentIntent.putExtra(Constants.EXTRA_COMMENT_STORY_ID, storyId);
         commentIntent.putExtra(Constants.EXTRA_STORY_COMMENT, name);
         commentIntent.putExtra(Constants.EXTRA_CURRENT_USER, currentUser);
         commentIntent.putExtra(Constants.EXTRA_STORY_DATE, date);
         commentIntent.putExtra(Constants.EXTRA_STORY_DATE_KEY, dateKey);
-        startActivity(commentIntent);
-    }
 
-    public void goToMedia(View v){
-        Intent mediaIntent = new Intent(this, MediaActivity.class);
-        Log.d(TAG, "viewStory storyName: " + name);
-        mediaIntent.putExtra(Constants.MEDIA_STORY_NAME, name);
-        mediaIntent.putExtra(Constants.EXTRA_CURRENT_USER, currentUser);
-        mediaIntent.putExtra(Constants.EXTRA_STORY_AUTHOR, author);
-        mediaIntent.putExtra(Constants.EXTRA_STORY_DATE, date);
-        mediaIntent.putExtra(Constants.EXTRA_STORY_DATE_KEY, dateKey);
-        startActivityForResult(mediaIntent, Constants.MEDIA_REQUEST_CODE);
+        if(uid == null && currentUser.equals(author)){
+            uid = currentUserID;
+        }
+
+        if(uid == null){
+            Toast.makeText(getApplicationContext(), "Sorry, "+author+"'s comments are not available right now", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        commentIntent.putExtra(Constants.EXTRA_STORY_UID, uid);
+        startActivity(commentIntent);
     }
 
     public void goToProfile(View v){
@@ -871,7 +987,9 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
         profileIntent.putExtra(Constants.PROFILE_AUTHOR, author);
         Log.d(TAG, "story uid: "+uid);
         if(uid == null && currentUser.equals(author)){
-            uid = currentUserID;
+//            uid = currentUserID;
+//            storiesDB.child(storyId).child("uid").setValue(uid);
+//            masterStoriesDB.child(storyId).child("uid").setValue(uid);
         }else{
             if(uid == null){
                 Toast.makeText(getApplicationContext(), "Sorry, this user's stories aren't available right now", Toast.LENGTH_SHORT).show();
@@ -879,23 +997,32 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
             }
 
         }
-        profileIntent.putExtra(Constants.EXTRA_STORY_UID, uid);
+        Log.d(TAG, "currentUser: "+currentUser + "\n uid: "+uid);
+        profileIntent.putExtra(Constants.PROFILE_ID, uid);
         startActivity(profileIntent);
 
     }
 
 
-
     public void addToVoteCount(final int delta, String emoticon, int emoticon_count){
+
         vote_count+=delta;
         emoticon_count += delta;
-
+        Log.d(TAG, "uid: "+uid+"\n name: "+name+"\n emoticon: "+emoticon);
         if(!emoticon.equals("voteCount")) {
-            storiesDB.child(name).child(emoticon).setValue(emoticon_count);
-            upvoteStoriesDB.child(name).child(emoticon).setValue(emoticon_count);
+            storiesDB.child(storyId).child(emoticon).setValue(emoticon_count);
+            upvoteStoriesDB.child(storyId).child(emoticon).setValue(emoticon_count);
+            rootRef.child("users").child(uid).child("stories").child(storyId).child(emoticon).setValue(emoticon_count);
         }else{
-            storiesDB.child(name).child("voteCount").setValue(vote_count);
-            upvoteStoriesDB.child(name).child("voteCount").setValue(vote_count);
+            storiesDB.child(storyId).child("voteCount").setValue(vote_count);
+            upvoteStoriesDB.child(storyId).child("voteCount").setValue(vote_count);
+            rootRef.child("users").child(uid).child("stories").child(storyId).child("voteCount").setValue(emoticon_count);
+        }
+        if(!currentUserID.equals(storyId) && delta > 0){
+            notificationsDB.child(currentUserID+"-"+storyId+"-"+uid).child("recipient").setValue(uid);
+            notificationsDB.child(currentUserID+"-"+storyId+"-"+uid).child("sender").setValue(currentUserID);
+            notificationsDB.child(currentUserID+"-"+storyId+"-"+uid).child("type").setValue("upvote");
+            notificationsDB.child(currentUserID+"-"+storyId+"-"+uid).child("storyID").setValue(storyId);
         }
     }
 
@@ -921,29 +1048,33 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
     public void onFinishedEmoticonSelection(String emoticon_name) {
         SharedPreferences.Editor editor = mSharedPreferences.edit();
         Log.d(TAG, "onFinishedEmoticonSelection name: "+emoticon_name);
+        if(uid == null){
+            Toast.makeText(getApplicationContext(), "Sorry you can't upvote this story right now", Toast.LENGTH_SHORT).show();
+            return;
+        }
         switch (emoticon_name){
             case "happy":
                 happy.setVisibility(View.VISIBLE);
                 addToVoteCount(1, "happyCount", happy_count);
-                happyStories.add(name);
+                happyStories.add(storyId);
                 editor.putStringSet(Constants.HAPPY_STORIES, happyStories);
                 break;
             case "sad":
                 sad.setVisibility(View.VISIBLE);
                 addToVoteCount(1, "sadCount", sad_count);
-                sadStories.add(name);
+                sadStories.add(storyId);
                 editor.putStringSet(Constants.SAD_STORIES, sadStories);
                 break;
             case "mad":
                 mad.setVisibility(View.VISIBLE);
                 addToVoteCount(1, "madCount", mad_count);
-                madStories.add(name);
+                madStories.add(storyId);
                 editor.putStringSet(Constants.MAD_STORIES, madStories);
                 break;
             case "surprised":
                 surprised.setVisibility(View.VISIBLE);
                 addToVoteCount(1, "surprisedCount", surprised_count);
-                surprisedStories.add(name);
+                surprisedStories.add(storyId);
                 editor.putStringSet(Constants.SURPRISED_STORIES, surprisedStories);
                 break;
         }

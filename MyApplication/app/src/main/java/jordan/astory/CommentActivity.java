@@ -31,7 +31,11 @@ public class CommentActivity extends Activity {
     Firebase masterRootRef;
     Firebase masterCommentsDB;
     Firebase masterStoriesDB;
+    Firebase masterUsersDB;
+    Firebase notificationsDB;
+    Firebase credentialsRef;
     String currentUser;
+    String storyUserID;
     String date;
     String postDate;
     String today;
@@ -44,7 +48,10 @@ public class CommentActivity extends Activity {
         commentsList = new ArrayList<>();
         Intent intent = getIntent();
         String storyName = intent.getStringExtra(Constants.EXTRA_STORY_COMMENT);
+        final String storyID = intent.getStringExtra(Constants.EXTRA_COMMENT_STORY_ID);
         currentUser = intent.getStringExtra(Constants.EXTRA_CURRENT_USER);
+        storyUserID = intent.getStringExtra(Constants.EXTRA_STORY_UID);
+        Log.d("comments", "storyUserID: "+storyUserID);
         date = intent.getStringExtra(Constants.EXTRA_STORY_DATE_KEY);
         postDate = intent.getStringExtra(Constants.EXTRA_STORY_DATE);
         SimpleDateFormat s = new SimpleDateFormat("MMMM dd, yyyy", Locale.US);
@@ -60,17 +67,21 @@ public class CommentActivity extends Activity {
         today = s2.format(d);
         if(!date.equals("")){
             masterRootRef = new Firebase("https://astory.firebaseio.com/");
-            masterCommentsDB = masterRootRef.child("comments").child(storyName);
-            masterStoriesDB = masterRootRef.child("stories").child(storyName);
+
         }else{
             masterRootRef = new Firebase("https://astory.firebaseio.com/"+today);
-            masterCommentsDB = masterRootRef.child("comments").child(storyName);
-            masterStoriesDB = masterRootRef.child("stories").child(storyName);
         }
+        masterCommentsDB = masterRootRef.child("comments").child(storyID);
+        masterStoriesDB = masterRootRef.child("stories").child(storyID);
+        masterUsersDB = masterRootRef.child("users").child(storyUserID).child("stories").child(storyID);
+        credentialsRef = new Firebase("https://astory.firebaseio.com/");
+        notificationsDB = new Firebase("https://astory.firebaseio.com/notifications");
+
 ;
         final Firebase rootRef = new Firebase("https://astory.firebaseio.com/"+date);
-        final Firebase commentsDB = rootRef.child("comments").child(storyName);
-        final Firebase storiesDB = rootRef.child("stories").child(storyName);
+        final Firebase commentsDB = rootRef.child("comments").child(storyID);
+        final Firebase storiesDB = rootRef.child("stories").child(storyID);
+        final Firebase usersDB = rootRef.child("users").child(storyUserID).child("stories").child(storyID);
         mAdapter = new FirebaseListAdapter<DBComment>(this, DBComment.class, android.R.layout.two_line_list_item, commentsDB){
             @Override
             protected void populateView(View view, DBComment comment){
@@ -80,16 +91,24 @@ public class CommentActivity extends Activity {
             }
         };
         listView.setAdapter(mAdapter);
-
         final EditText mMessage = (EditText) findViewById(R.id.message_text);
         findViewById(R.id.send_button).setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View v){
+                if(!credentialsRef.getAuth().getUid().equals(storyUserID)){
+                    notificationsDB.child(credentialsRef.getAuth().getUid()+"-"+storyID + "-" +storyUserID).child("recipient").setValue(storyUserID);
+                    notificationsDB.child(credentialsRef.getAuth().getUid()+"-"+storyID + "-" +storyUserID).child("sender").setValue(credentialsRef.getAuth().getUid());
+                    notificationsDB.child(credentialsRef.getAuth().getUid()+"-"+storyID + "-" +storyUserID).child("type").setValue("comment");
+                    notificationsDB.child(credentialsRef.getAuth().getUid()+"-"+storyID + "-" +storyUserID).child("storyID").setValue(storyID);
+                }
+
                 commentsDB.push().setValue(new DBComment(currentUser, mMessage.getText().toString()));
                 storiesDB.child("commentCount").setValue(mAdapter.getCount() + 1);
+                usersDB.child("commentCount").setValue(mAdapter.getCount() + 1);
                 if(postDate != null) {
                     masterCommentsDB.push().setValue(new DBComment(currentUser, mMessage.getText().toString()));
                     masterStoriesDB.child("commentCount").setValue(mAdapter.getCount() + 1);
+                    masterUsersDB.child("commentCount").setValue(mAdapter.getCount() + 1);
                 }
                 mMessage.setText("");
             }

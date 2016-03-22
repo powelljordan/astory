@@ -17,7 +17,9 @@
     <permission android:name="jordan.astory.permission.C2D_MESSAGE" android:protectionLevel="signature" />
     <uses-permission android:name="jordan.astory.permission.C2D_MESSAGE" />
 
+
     <!-- This app has permission to register and receive dataf message. -->
+    <uses-permission android:name="com.google.android.c2dm.intent.REGISTRATION"/>
     <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" />
     <!--
          The ACCESS_COARSE/FINE_LOCATION permissions are not required to use
@@ -59,6 +61,7 @@
         <meta-data
             android:name="com.firebase.ui.GoogleClientId"
             android:value="@string/google_client_id" />
+        <meta-data android:name="com.facebook.sdk.ApplicationId" android:value="@string/facebook_app_id"/>
         <activity
             android:name=".SplashActivity"
             android:theme="@style/SplashTheme">
@@ -69,7 +72,11 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
-
+        <activity
+            android:name="com.facebook.FacebookActivity"
+            android:configChanges="keyboard|keyboardHidden|screenLayout|screenSize|orientation"
+            android:label="@string/app_name"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
         <activity android:name=".ViewStoryActivity"
             android:screenOrientation="portrait"
             android:configChanges="orientation">
@@ -80,10 +87,6 @@
         </activity>
         <activity android:name=".CommentActivity"
             android:windowSoftInputMode="adjustResize"
-            android:screenOrientation="portrait"
-            android:configChanges="orientation">
-        </activity>
-        <activity android:name=".MediaActivity"
             android:screenOrientation="portrait"
             android:configChanges="orientation">
         </activity>
@@ -102,6 +105,21 @@
         <service
             android:name="com.amazonaws.mobileconnectors.s3.transferutility.TransferService"
             android:enabled="true" />
+        <service android:name=".RegistrationIntentService" android:exported="false"/>
+        <service
+            android:name="jordan.astory.MyInstanceIDListenerService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.android.gms.iid.InstanceID"/>
+            </intent-filter>
+        </service>
+        <service
+            android:name=".GcmMessageHandler"
+            android:exported="false" >
+            <intent-filter>
+                <action android:name="com.google.android.c2dm.intent.RECEIVE" />
+            </intent-filter>
+        </service>
         <receiver
             android:name="com.pushbots.google.gcm.GCMBroadcastReceiver"
             android:permission="com.google.android.c2dm.permission.SEND" >
@@ -110,11 +128,21 @@
                 <action android:name="com.google.android.c2dm.intent.RECEIVE" />
                 <!-- Receives the registration id. -->
                 <action android:name="com.google.android.c2dm.intent.REGISTRATION" />
-                <category android:name="com.example.sampleapp" />
+                <category android:name="jordan.astory" />
             </intent-filter>
         </receiver>
         <receiver android:name="com.pushbots.push.DefaultPushHandler" />
         <service android:name="com.pushbots.push.GCMIntentService" />
+        <receiver
+            android:name="com.google.android.gms.gcm.GcmReceiver"
+            android:exported="true"
+            android:permission="com.google.android.c2dm.permission.SEND" >
+            <intent-filter>
+                <action android:name="com.google.android.c2dm.intent.RECEIVE" />
+                <category android:name="jordan.astory" />
+            </intent-filter>
+        </receiver>
+        <!--<service android:name=".GcmMessageHandler">-->
     </application>
     <meta-data
         android:name="com.google.android.maps.v2.API_KEY"

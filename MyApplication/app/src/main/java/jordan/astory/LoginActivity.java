@@ -1,6 +1,7 @@
 package jordan.astory;
 
 import android.content.Intent;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.app.DialogFragment;
 import android.util.Log;
@@ -15,7 +16,9 @@ import com.firebase.ui.auth.core.FirebaseLoginBaseActivity;
 import com.firebase.ui.auth.core.FirebaseLoginError;
 import com.firebase.ui.auth.core.SocialProvider;
 import com.google.android.gms.common.SignInButton;
+import com.google.android.gms.gcm.GoogleCloudMessaging;
 
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -60,6 +63,28 @@ public class LoginActivity extends FirebaseLoginBaseActivity implements Register
 
 
     }
+    void getDeviceToken() {
+        new AsyncTask() {
+            @Override
+            protected Object doInBackground(Object[] params) {
+
+                GoogleCloudMessaging gcm = GoogleCloudMessaging.getInstance(getApplicationContext());
+
+                String deviceToken;
+                try {
+                    deviceToken = gcm.register("118911688369");
+                    Log.i("GCM", "Device token : " + deviceToken);
+                    Firebase rootRef = new Firebase("https://astory.firebaseio.com");
+                    Firebase usersDB = rootRef.child("users");
+                    usersDB.child(rootRef.getAuth().getUid()).child("deviceToken").setValue(deviceToken);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                return null;
+            }
+        };
+    }
     @Override
     public Firebase getFirebaseRef() {
         // TODO: Return your Firebase ref
@@ -70,14 +95,25 @@ public class LoginActivity extends FirebaseLoginBaseActivity implements Register
     public void onFirebaseLoggedIn(AuthData authData) {
         // TODO: Handle successful login
 //        Toast.makeText(getApplicationContext(), authData.getUid(), Toast.LENGTH_SHORT).show();
+
+        Log.d(TAG, "Logged in through "+authData.getUid());
+        Log.d(TAG, "provider data: "+authData.getProviderData());
+        if(authData.getProvider().equals("facebook")){
+            createFacebookUser(authData.getUid(), authData.getProviderData().get("displayName").toString());
+            Log.d(TAG, "data: " + authData.getProviderData().get("displayName"));
+        }
+
         setResult(RESULT_OK, new Intent().putExtra(Constants.CURRENT_USER_ID, authData.getUid()));
         Log.d(TAG, "Logged in");
+        Intent intent = new Intent(this, RegistrationIntentService.class);
+        startService(intent);
+//        getDeviceToken();
         finish();
     }
 
     @Override
     public void onFirebaseLoggedOut() {
-        // TODO: Handle logout
+            // TODO: Handle logout
     }
 
     @Override
@@ -92,12 +128,14 @@ public class LoginActivity extends FirebaseLoginBaseActivity implements Register
         // TODO: Handle an error from the user
         Log.d(TAG, firebaseError.toString());
         Toast.makeText(this, "Login Error. That username password combo isn't quite right", Toast.LENGTH_SHORT).show();
+        resetFirebaseLoginDialog();
     }
 
     @Override
     protected void onStart(){
         super.onStart();
         setEnabledAuthProvider(SocialProvider.password);
+        setEnabledAuthProvider(SocialProvider.facebook);
 //        setEnabledAuthProvider(SocialProvider.google);
     }
 
@@ -137,8 +175,13 @@ public class LoginActivity extends FirebaseLoginBaseActivity implements Register
     }
 
     @Override
-    public void onDialogNegativeClick(DialogFragment dialog){
+    public void onDialogNegativeClick(DialogFragment dialog) {
 
+    }
+
+    public void createFacebookUser(String uid, String name){
+        rootRef.child("users").child(uid).child("uid").setValue(uid);
+        rootRef.child("users").child(uid).child("username").setValue(name);
     }
 
     @Override
@@ -148,7 +191,7 @@ public class LoginActivity extends FirebaseLoginBaseActivity implements Register
         userObj.put("username", username);
         userObj.put("email", email);
 
-        rootRef.createUser(email, password, new Firebase.ValueResultHandler<Map<String, Object>>(){
+        rootRef.createUser(email, password, new Firebase.ValueResultHandler<Map<String, Object>>() {
             @Override
             public void onSuccess(Map<String, Object> result) {
                 Firebase user = rootRef.child("users").child(result.get("uid").toString());

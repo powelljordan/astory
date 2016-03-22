@@ -83,9 +83,11 @@ public class UserStoriesAdapter extends ArrayAdapter<DBStory> {
             viewHolder = (UserStoriesViewHolder)row.getTag();
         }
         DBStory story = getItem(position);
+        Log.d(TAG, "story: "+story);
+        Log.d(TAG, "story.content: "+story.getContent());
         viewHolder.title.setText(story.getName());
         viewHolder.date.setText(story.getDate());
-        Log.d(TAG, "reactionCount: " + viewHolder.reactionCount);
+        Log.d(TAG, "commentCount: " + story.getCommentCount());
         Log.d(TAG, "voteCount: "+story.getVoteCount());
         if(story.getVoteCount() == null){
             viewHolder.reactionCount.setText("0");

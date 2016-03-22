@@ -59,6 +59,7 @@ public final class Constants {
 
     public static final HashMap<String, Story> STORY_LOCATIONS = new HashMap<>();
 
+    public final static String EXTRA_STORY_ID = "jordan.astory.STORY_ID";
     public final static String EXTRA_STORY_CONTENT = "jordan.astory.STORY_CONTENT";
     public final static String EXTRA_STORY_NAME = "jordan.astory.STORY_NAME";
     public final static String EXTRA_STORY_AUTHOR = "jordan.astory.STORY_AUTHOR";
@@ -66,8 +67,10 @@ public final class Constants {
     public final static String EXTRA_STORY_DATE = "jordan.astory.STORY_DATE";
     public final static String EXTRA_STORY_DATE_KEY = "jordan.astory.STORY_DATE_KEY";
     public final static String EXTRA_CURRENT_USER = "jordan.astory.CURRENT_USER";
+    public final static String EXTRA_USER_ID = "jordan.astory.USER_ID";
     public final static String VIEW_STORY_KEY = "jordan.astory.STORY_KEY";
     public final static String EXTRA_STORY_COMMENT = "jordan.astory.STORY_COMMENT";
+    public final static String EXTRA_COMMENT_STORY_ID="jordan.astory.EXTRA_COMMENT_STORY_ID";
     public final static String UPVOTED_STORIES = "jordan.astory.UPVOTED_STORIES";
     public final static String HAPPY_STORIES = "jordan.astory.HAPPY_STORIES";
     public final static String SAD_STORIES = "jordan.astory.SAD_STORIES";
@@ -105,5 +108,6 @@ public final class Constants {
     public final static String PROFILE_NAME = "jordan.astory.PROFILE_NAME";
     public final static String PROFILE_CURRENT_USER = "jordan.astory.PROFILE_CURRENT_USER";
     public final static String PROFILE_AUTHOR = "jordan.astory.PROFILE_AUTHOR";
+    public final static String PROFILE_ID = "jordan.astory.PROFILE_ID";
     public final static int PROFILE_REQUEST_CODE = 15;
 }

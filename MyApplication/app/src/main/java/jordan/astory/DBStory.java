@@ -8,6 +8,7 @@ import com.google.android.gms.maps.model.Marker;
  * Created by Jordan on 1/3/2016.
  */
 public class DBStory {
+    private String id;
     private String name;
     private String content;
     private String author;
@@ -28,7 +29,9 @@ public class DBStory {
     public DBStory(){
 
     }
-
+    public String getId(){
+        return id;
+    }
     public String getName(){
         return name;
     }

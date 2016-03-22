@@ -14,6 +14,7 @@ public class DBUser {
     private String username;
     private String uid;
     private String email;
+    private String deviceToken;
     private HashMap<String, DBStory> stories;
 
     public DBUser(){}
@@ -23,6 +24,10 @@ public class DBUser {
     public String getUid(){return uid;}
 
     public String getEmail(){return email;}
+
+    public String getDeviceToken(){
+        return deviceToken;
+    }
 
     public HashMap<String, DBStory> getStories(){return stories;
     }
