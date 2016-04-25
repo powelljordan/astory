@@ -84,7 +84,7 @@ public class CommentActivity extends Activity {
         final Firebase usersDB = rootRef.child("users").child(storyUserID).child("stories").child(storyID);
         mAdapter = new FirebaseListAdapter<DBComment>(this, DBComment.class, android.R.layout.two_line_list_item, commentsDB){
             @Override
-            protected void populateView(View view, DBComment comment){
+            protected void populateView(View view, DBComment comment, int i){
                 ((TextView)view.findViewById(android.R.id.text1)).setText(comment.getAuthor());
                 ((TextView)view.findViewById(android.R.id.text2)).setText(comment.getMessage());
 

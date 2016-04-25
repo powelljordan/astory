@@ -9,8 +9,8 @@ android {
         applicationId "jordan.astory"
         minSdkVersion 16
         targetSdkVersion 23
-        versionCode 3
-        versionName "1.2"
+        versionCode 12
+        versionName "1.11"
     }
     buildTypes {
         release {
@@ -35,7 +35,7 @@ dependencies {
     compile 'com.android.support:support-v4:23.1.1'
     compile 'com.android.support:design:23.1.1'
     compile 'com.firebase:firebase-client-android:2.5.0+'
-    compile 'com.firebaseui:firebase-ui:0.3.0'
+    compile 'com.firebaseui:firebase-ui:0.3.1'
     compile 'com.firebase:geofire:1.1.0+'
     compile 'com.amazonaws:aws-android-sdk-core:2.+'
     compile 'com.amazonaws:aws-android-sdk-cognito:2.+'

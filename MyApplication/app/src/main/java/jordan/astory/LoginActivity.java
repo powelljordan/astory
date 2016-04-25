@@ -12,9 +12,9 @@ import android.widget.Toast;
 import com.firebase.client.AuthData;
 import com.firebase.client.Firebase;
 import com.firebase.client.FirebaseError;
+import com.firebase.ui.auth.core.AuthProviderType;
 import com.firebase.ui.auth.core.FirebaseLoginBaseActivity;
 import com.firebase.ui.auth.core.FirebaseLoginError;
-import com.firebase.ui.auth.core.SocialProvider;
 import com.google.android.gms.common.SignInButton;
 import com.google.android.gms.gcm.GoogleCloudMessaging;
 
@@ -36,6 +36,7 @@ public class LoginActivity extends FirebaseLoginBaseActivity implements Register
     private String TAG = "LoginActivity";
     protected void onCreate(Bundle savedInstanceState){
         super.onCreate(savedInstanceState);
+        Firebase.setAndroidContext(this);
         setContentView(R.layout.login_layout);
         rootRef = new Firebase("https://astory.firebaseio.com/");
         mLoginButton = (Button) findViewById(R.id.sign_in);
@@ -128,14 +129,14 @@ public class LoginActivity extends FirebaseLoginBaseActivity implements Register
         // TODO: Handle an error from the user
         Log.d(TAG, firebaseError.toString());
         Toast.makeText(this, "Login Error. That username password combo isn't quite right", Toast.LENGTH_SHORT).show();
-        resetFirebaseLoginDialog();
+        resetFirebaseLoginPrompt();
     }
 
     @Override
     protected void onStart(){
         super.onStart();
-        setEnabledAuthProvider(SocialProvider.password);
-        setEnabledAuthProvider(SocialProvider.facebook);
+        setEnabledAuthProvider(AuthProviderType.PASSWORD);
+        setEnabledAuthProvider(AuthProviderType.FACEBOOK);
 //        setEnabledAuthProvider(SocialProvider.google);
     }
 

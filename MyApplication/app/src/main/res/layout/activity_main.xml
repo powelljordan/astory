@@ -20,6 +20,17 @@
             android:layout_height="wrap_content"
             android:visibility="gone"/>
     </FrameLayout>
+    <com.getbase.floatingactionbutton.FloatingActionButton
+        android:id="@+id/localize"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        fab:fab_colorNormal="@color/white"
+        fab:fab_icon="@mipmap/ic_my_location_black_24dp"
+        fab:fab_colorPressed="@color/white_pressed"
+        android:visibility="invisible"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentEnd="true"/>
     <com.getbase.floatingactionbutton.FloatingActionsMenu
         android:id="@+id/main_menu"
         android:layout_width="wrap_content"
@@ -34,7 +45,6 @@
         android:layout_marginBottom="16dp"
         android:layout_marginRight="16dp"
         android:layout_marginEnd="16dp">
-
         <com.getbase.floatingactionbutton.FloatingActionButton
             android:id="@+id/addStory"
             android:layout_width="wrap_content"
@@ -59,12 +69,12 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             fab:fab_colorNormal="@color/white"
-            fab:fab_title="@string/all_stories"
-            fab:fab_icon="@mipmap/ic_restore_black_24dp"
+            fab:fab_title="@string/recent_stories_button"
+            fab:fab_icon="@mipmap/ic_whatshot_black_24dp"
             fab:fab_colorPressed="@color/white_pressed"/>
 
         <com.getbase.floatingactionbutton.FloatingActionButton
-            android:id="@+id/comment"
+            android:id="@+id/view_profile"
             android:onClick="goToProfile"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

@@ -3,6 +3,7 @@ package jordan.astory;
 /**
  * Created by Jordan on 12/28/2015.
  */
+import android.annotation.TargetApi;
 import android.app.DatePickerDialog;
 import android.app.Dialog;
 import android.app.PendingIntent;
@@ -11,10 +12,14 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.graphics.Color;
 import android.location.Location;
 import com.getbase.floatingactionbutton.FloatingActionButton;
+
+import android.net.Uri;
+import android.os.Build;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.app.FragmentManager;
 import android.support.v7.app.ActionBarActivity;
@@ -37,6 +42,7 @@ import com.firebase.geofire.GeoFire;
 import com.firebase.geofire.GeoLocation;
 import com.firebase.geofire.GeoQuery;
 import com.firebase.geofire.GeoQueryEventListener;
+import com.getbase.floatingactionbutton.FloatingActionsMenu;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
 import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener;
@@ -64,10 +70,12 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.pushbots.push.Pushbots;
 
 
+import java.lang.reflect.Array;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -138,13 +146,30 @@ public class MainActivity extends FragmentActivity implements
     private int month;
     private int day;
 
+    private int comment_count = 0;
+    private int vote_count = 0;
+    private boolean active = false;
+
     static final int DATE_DIALOG_ID = 999;
     public static DBUser currentUser;
 
+    private String selectedStoryID;
+    private String selectedStoryName;
+    private LatLng selectedStoryLatLng;
+    private int selectedStoryCommentCount;
+    private int selectedStoryVoteCount;
+    private Marker tempMarker;
+    private boolean previewingStory = false;
+
     private DatePicker dpResult;
+    private FloatingActionButton myLocationButton;
+    private FloatingActionButton addStory;
     private FloatingActionButton calendarButton;
-    private FloatingActionButton allStoriesButton;
+    private FloatingActionButton recentStoriesButton;
+    private FloatingActionButton viewProfile;
+    private FloatingActionsMenu mainMenu;
     private boolean initiallyLoadedStories = false;
+    private Permissions permissions;
 
     /**
      * Stores paramenters for requests to the FusedLocationProviderApi
@@ -167,7 +192,13 @@ public class MainActivity extends FragmentActivity implements
         //Calendar filter stuff
         setCurrentDateOnView();
         addCalendarButtonListener();
-        addAllStoriesButtonListener();
+        addRecentStoriesButtonListener();
+        addAddStoryListener();
+        addViewProfileListener();
+        addMyLocationListener();
+
+        mainMenu = (FloatingActionsMenu) findViewById(R.id.main_menu);
+//        addMainMenuListener();
 
 
         mGeofenceList = new ArrayList<Geofence>();
@@ -188,7 +219,6 @@ public class MainActivity extends FragmentActivity implements
 
         updateValuesFromBundle(savedInstanceState);
 
-        setButtonsEnabledState();
 
         //Iniitialize all the geofences
         populateGeofenceList();
@@ -199,36 +229,60 @@ public class MainActivity extends FragmentActivity implements
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
         fragmentManager = getSupportFragmentManager();
+        if(Build.VERSION.RELEASE.equals("6.0")) {
+//            Toast.makeText(getApplicationContext(), "My deepest apologies. Your version of Android is not yet supported.", Toast.LENGTH_LONG).show();
+        }
         handleLogin();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int permsRequestCode, String[] permissions, int[] grantResults){
+        switch(permsRequestCode){
+
+            case Constants.PERMISSIONS_REQUEST_CODE:
+//                LatLng myLocation = new LatLng(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude());
+                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(0,0), Constants.MAP_ZOOM_LEVEL));
+//                boolean locationAccepted = grantResults[0]== PackageManager.PERMISSION_GRANTED;
+
+                break;
+
+        }
 
     }
+
+
     private void handleLogin(){
+        Log.d(TAG, "rootRef.getAuth(): " + rootRef.getAuth());
         if(rootRef.getAuth() == null) {
             goToLoginScreen();
-        }
-        currentUserID = mSharedPreferences.getString(Constants.CURRENT_USER_ID_KEY, "N/A");
-        if(currentUserID.equals("N/A")){
-            Log.e(TAG, "User has not logged in and is not in Shared Preferences");
-        }
-        Firebase usersDB = new Firebase("https://astory.firebaseio.com/users");
-        usersDB.child(currentUserID).addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(DataSnapshot dataSnapshot) {
-                currentUser = dataSnapshot.getValue(DBUser.class);
-                if (currentUser != null) {
-                    if (currentUser.getStories() != null) {
+        }else {
+            currentUserID = mSharedPreferences.getString(Constants.CURRENT_USER_ID_KEY, "N/A");
+            if (currentUserID.equals("N/A")) {
+                Log.e(TAG, "User has not logged in and is not in Shared Preferences");
+                currentUserID = rootRef.getAuth().getUid();
+            }
+            Firebase usersDB = new Firebase("https://astory.firebaseio.com/users");
+            usersDB.child(currentUserID).addValueEventListener(new ValueEventListener() {
+                @Override
+                public void onDataChange(DataSnapshot dataSnapshot) {
+                    currentUser = dataSnapshot.getValue(DBUser.class);
+                    if (currentUser != null) {
+                        if (currentUser.getStories() != null) {
 //                    currentUserStories = currentUser.getStories();
+                        }
                     }
-                }
 
 //                Log.d(TAG, "currentUser: " + currentUser);
-            }
+                }
 
-            @Override
-            public void onCancelled(FirebaseError firebaseError) {
-                Log.e(TAG, firebaseError.toString());
-            }
-        });
+                @Override
+                public void onCancelled(FirebaseError firebaseError) {
+                    Log.e(TAG, firebaseError.toString());
+                }
+            });
+            permissions = new Permissions(this);
+            permissions.checkForPermissions(Constants.LOCATION_PERMS);
+        }
     }
     private void updateValuesFromBundle(Bundle savedInstanceState) {
         Log.i(TAG, "Updating values from bundle");
@@ -293,7 +347,10 @@ public class MainActivity extends FragmentActivity implements
         Log.d(TAG, "location: "+location);
         mCurrentLocation = location;
         geoQuery.setCenter(new GeoLocation(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude()));
-        updateMap();
+
+        if(!previewingStory) {
+            updateMap();
+        }
 //        Toast.makeText(this, "Location updated", Toast.LENGTH_SHORT).show();
     }
 
@@ -308,7 +365,7 @@ public class MainActivity extends FragmentActivity implements
             specificStoryDB.addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override
                 public void onDataChange(DataSnapshot dataSnapshot) {
-                    Log.d(TAG, "dataSnapshot: "+dataSnapshot);
+                    Log.d(TAG, "dataSnapshot: " + dataSnapshot);
                     DBStory dbStory = dataSnapshot.getValue(DBStory.class);
 //                    Log.d(TAG, "dbStory " + dbStory);
                     if (dbStory != null) {
@@ -320,7 +377,7 @@ public class MainActivity extends FragmentActivity implements
                             }
                         }
                         if (!alreadyAddedStory) {
-                            Log.d(TAG, "adding "+dbStory.getName()+" to storyList");
+                            Log.d(TAG, "adding " + dbStory.getName() + " to storyList");
                             Story story = new Story();
                             Log.d(TAG, dbStory.getName());
                             story.id = dbStory.getId();
@@ -336,9 +393,10 @@ public class MainActivity extends FragmentActivity implements
                             story.madCount = dbStory.getMadCount();
                             story.surprisedCount = dbStory.getSurprisedCount();
                             story.commentCount = dbStory.getCommentCount();
+                            story.voteCount = dbStory.getVoteCount();
                             addStoryToDevice(story);
                             addStoryGeofence();
-                            Log.d(TAG, "Now storyList contains "+storyList.size()+" stories");
+                            Log.d(TAG, "Now storyList contains " + storyList.size() + " stories");
                         }
                     }
 
@@ -380,6 +438,15 @@ public class MainActivity extends FragmentActivity implements
 
     }
 
+    public boolean storyAddedOnMap(LatLng storyLocation){
+        float[] results = new float[10];
+        Location.distanceBetween(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude(),
+                storyLocation.latitude, storyLocation.longitude, results);
+        Log.d(TAG, "distance: " + results[0]);
+        return Constants.STORY_QUERY_RADIUS * 1000 > results[0] ;
+    }
+
+
 
     @Override
     protected void onStart() {
@@ -392,6 +459,9 @@ public class MainActivity extends FragmentActivity implements
         registerReceiver(myReceiver, intentFilter);
         GeofenceTransitionsIntentService.notify = false;
         mLocationRequest.setInterval(Constants.UPDATE_INTERVAL_IN_MILLISECONDS);
+        SharedPreferences.Editor editor = mSharedPreferences.edit();
+        editor.putBoolean("active", true);
+        editor.apply();
 //        Log.d(TAG, "receiver registered");
 
         //Start our own service
@@ -407,12 +477,15 @@ public class MainActivity extends FragmentActivity implements
         Firebase credentialsRef = new Firebase("https://astory.firebaseio.com");
         if(credentialsRef.getAuth() == null) {
             goToLoginScreen();
+        }else{
+            permissions = new Permissions(this);
+            permissions.checkForPermissions(Constants.LOCATION_PERMS);
+            if(mGoogleApiClient.isConnected() && mRequestingLocationUpdates) {
+                GeofenceTransitionsIntentService.notify = false;
+                mLocationRequest.setInterval(Constants.UPDATE_INTERVAL_IN_MILLISECONDS);
+                stopLocationUpdates();
+                startLocationUpdates();
         }
-        if(mGoogleApiClient.isConnected() && mRequestingLocationUpdates){
-            GeofenceTransitionsIntentService.notify = false;
-            mLocationRequest.setInterval(Constants.UPDATE_INTERVAL_IN_MILLISECONDS);
-            stopLocationUpdates();
-            startLocationUpdates();
 
 //            startLocationUpdates();
 
@@ -431,6 +504,9 @@ public class MainActivity extends FragmentActivity implements
         unregisterReceiver(myReceiver);
         GeofenceTransitionsIntentService.notify = true;
         Log.d(TAG, "notify: " + GeofenceTransitionsIntentService.notify);
+        SharedPreferences.Editor editor = mSharedPreferences.edit();
+        editor.putBoolean("active", true);
+        editor.apply();
     }
 
     @Override
@@ -464,11 +540,15 @@ public class MainActivity extends FragmentActivity implements
         if (mCurrentLocation == null) {
             try{
                 mCurrentLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
-                LatLng myLocation = new LatLng(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude());
-                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(myLocation, Constants.MAP_ZOOM_LEVEL));
-                updateMap();
+                if(mCurrentLocation == null){
+//                    return;
+                }else {
+                    LatLng myLocation = new LatLng(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude());
+                    mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(myLocation, Constants.MAP_ZOOM_LEVEL));
+                    updateMap();
 
-                startLocationUpdates();
+                    startLocationUpdates();
+                }
             }catch(SecurityException securityException){
                 logSecurityException(securityException);
             }
@@ -623,9 +703,6 @@ public class MainActivity extends FragmentActivity implements
             editor.putBoolean(Constants.GEOFENCES_ADDED_KEY, mGeofencesAdded);
             editor.apply();
 
-            // Update the UI. Adding geofences enables the Remove Geofences button, and removing
-            // geofences enables the Add Geofences button.
-            setButtonsEnabledState();
 
             Toast.makeText(
                     this,
@@ -731,12 +808,23 @@ public class MainActivity extends FragmentActivity implements
             story.geofence = mGeofenceList.get(0);
             Marker storyMarker = mMap.addMarker(new MarkerOptions().position(story.location).title(story.name)
                     .icon(BitmapDescriptorFactory.fromResource(R.mipmap.seen_marker64)));
+
 //        addMarkerListener();
             story.marker = storyMarker;
             storyList.add(story);
             addStoryToDB(story);
 
         }
+    }
+
+    public String sanitizeText(String text){
+        String t = text.replace(".", "");
+        t = t.replace("$", "");
+        t = t.replace("[", "");
+        t = t.replace("#", "");
+        t = t.replace("]", "");
+        t = t.replace("/", "");
+        return t;
     }
 
     public void addStoryToDB(Story story){
@@ -749,13 +837,17 @@ public class MainActivity extends FragmentActivity implements
         storyObj.put("longitude", Double.toString(story.location.longitude));
         storyObj.put("author", story.author);
         storyObj.put("uid", story.uid);
-//        Log.d(TAG, "addStoryToDB is in fact getting called");
+        //Story object created
         Firebase storyRef = storiesDB.child(story.id);
+        Firebase usersDB = new Firebase("https://astory.firebaseio.com/users");
         Firebase userRef = usersDB.child(currentUserID);
-        Log.d(TAG, "currentUserStories" + currentUserStories);
         currentUserStories.add(story.id);
+
+        //Story added to usersDB and storiesDB
         userRef.child("stories").child(story.id).setValue(storyObj);
         storyRef.setValue(storyObj);
+
+        Log.d(TAG, "userStoryRef: " + userRef.child("stories").child(story.id));
         Log.d(TAG, "Date's broken. It equals " + date);
         if(!date.equals("")) {
             masterRootRef.child("stories").child(story.id).setValue(storyObj);
@@ -783,14 +875,17 @@ public class MainActivity extends FragmentActivity implements
             todayRootRef.child("stories").child(story.id).removeValue();
             todayGeoFire.removeLocation(story.id);
         }
-        Firebase userRef = usersDB.child(currentUserID);
-        userRef.child(story.id).removeValue();
+        Firebase usersDB = new Firebase("https://astory.firebaseio.com/users");
+        Firebase userRef = usersDB.child(masterRootRef.getAuth().getUid());
+        userRef.child("stories").child(story.id).removeValue();
         storyList.remove(story);
+        currentUserStories.remove(story.id);
 //        mMap.clear();
     }
 
     public void removeStoryFromDevice(Story story){
 //        Log.d(TAG, "removeStoryFromDevice");
+        currentUserStories.remove(story.id);
         story.marker.remove();
         removeStoryGeofence(story);
         mGeofenceList.remove(story);
@@ -833,31 +928,39 @@ public class MainActivity extends FragmentActivity implements
             }
             story.geofence = mGeofenceList.get(0);
             Log.d(TAG, "add stories to device called");
-            Marker storyMarker = mMap.addMarker(new MarkerOptions().position(story.location).title(story.name)
-                    .icon(BitmapDescriptorFactory.fromResource(R.mipmap.seen_marker64)));
+            Marker storyMarker;
+            if(story.active){
+                 storyMarker = mMap.addMarker(new MarkerOptions().position(story.location).title(story.name)
+                        .icon(BitmapDescriptorFactory.fromResource(getResource(story))));
+            }else {
+                storyMarker = mMap.addMarker(new MarkerOptions().position(story.location).title(story.name)
+                        .icon(BitmapDescriptorFactory.fromResource(R.mipmap.seen_marker64)));
+            }
+            Log.d(TAG, "Added marker: "+storyMarker.getTitle());
+            Log.d(TAG, "Marker postion: " + storyMarker.getPosition());
 //        addMarkerListener();
             story.marker = storyMarker;
             storyList.add(story);
         }
     }
 
-    /**
-     * Ensures that only one button is enabled at any time. The Add Geofences button is enabled
-     * if the user hasn't yet added geofences. The Remove Geofences button is enabled if the
-     * user has added geofences.
-     */
-    private void setButtonsEnabledState() {
-        if (mGeofencesAdded) {
-//            mAddGeofencesButton.setEnabled(false);
-//            mRemoveGeofencesButton.setEnabled(true);
-        } else {
-//            mAddGeofencesButton.setEnabled(true);
-//            mRemoveGeofencesButton.setEnabled(false);
-        }
-    }
 
     public void onMapReady(GoogleMap googleMap){
         mMap = googleMap;
+        Log.d(TAG, "active before info window shown: "+active);
+        mMap.setInfoWindowAdapter(new SummaryInfoWindowAdapter(comment_count, vote_count, active, getApplicationContext()));
+        mMap.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener() {
+
+            @Override
+            public void onInfoWindowClick(Marker marker) {
+                Uri uri = Uri.parse("http://maps.google.com/maps?saddr="+mCurrentLocation.getLatitude()
+                        +","+mCurrentLocation.getLongitude()+"&daddr="+marker.getPosition().latitude +
+                        "," + marker.getPosition().longitude +
+                        " (" + marker.getTitle() + ")");
+                Intent intent = new Intent(Intent.ACTION_VIEW, uri);
+                startActivity(intent);
+            }
+        });
 
         // Add a marker in Sydney and move the camera
         if(mCurrentLocation != null) {
@@ -873,12 +976,17 @@ public class MainActivity extends FragmentActivity implements
             return;
         }
         LatLng myLocation = new LatLng(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude());
-        mMap.animateCamera(CameraUpdateFactory.newLatLng(myLocation));
+        mMap.animateCamera(CameraUpdateFactory.newLatLng(myLocation), 2000, null);
 
         if(myCircle != null){
             myCircle.remove();
         }
-        myCircle = mMap.addCircle(new CircleOptions().center(myLocation).radius(Constants.GEOFENCE_RADIUS_IN_METERS - 10).strokeColor(Color.BLUE));
+        myCircle = mMap.addCircle(new CircleOptions()
+                .center(myLocation)
+                .radius(Constants.GEOFENCE_RADIUS_IN_METERS - 10)
+                .strokeWidth(10)
+                .strokeColor(Color.BLUE)
+                .fillColor(Color.parseColor("#500084d3")));
 //        mMap.addMarker(new MarkerOptions().position(myLocation).title("Marker in myLocation"));
         addMarkerListener();
 
@@ -894,21 +1002,67 @@ public class MainActivity extends FragmentActivity implements
                     if (story.marker.equals(marker)) {
                         if (story.active) {
                             Log.d(TAG, "within marker listener " + story.date);
-                            goToViewStoryScreen(story);
+                            goToViewStoryScreen(story, false);
                             return true;
                         } else {
-                            marker.setSnippet("You're too far away to view this story");
+                            comment_count = story.commentCount;
+                            vote_count = story.voteCount;
+                            active = story.active;
+                            if(story.commentCount == null){
+                                comment_count = 0;
+                            }
+                            if(story.voteCount == null){
+                                vote_count = 0;
+                            }
+                            Log.d(TAG, "active before info window shown: "+active);
+                            mMap.setInfoWindowAdapter(new SummaryInfoWindowAdapter(story.commentCount, story.voteCount,story.active, getApplicationContext()));
+                            Log.d(TAG, "comment_count: " + comment_count + "\n vote_count: " + vote_count);
                             return false;
                         }
                     }
+                }
+                if(marker.getTitle() != null){
+                    return false;
                 }
                 return true;
             }
         });
     }
 
-    public void goToViewStoryScreen(Story story){
+    public void showMarkerOnMap(String storyID, String storyName, LatLng storyLocation, int commentCount, int voteCount){
+        if(!storyAddedOnMap(storyLocation)) {
+            Log.d(TAG, "showMarkerOnMap: " + storyName);
+            active = false;
+            tempMarker = mMap.addMarker(new MarkerOptions().position(storyLocation).title(storyName)
+                    .icon(BitmapDescriptorFactory.fromResource(R.mipmap.seen_marker64)));
+
+
+        }else{
+            for(Story story: storyList){
+                if(storyID.equals(story.id)){
+                    tempMarker = story.marker;
+                    active = story.active;
+                }
+            }
+        }
+        Log.d(TAG, "active before info window shown: " + active);
+        mMap.setInfoWindowAdapter(new SummaryInfoWindowAdapter(commentCount, voteCount, active, getApplicationContext()));
+        mMap.animateCamera(CameraUpdateFactory.newLatLng(storyLocation), 2000, null);
+        Log.d(TAG, "show marker storyID: " + storyID);
+        Log.d(TAG, "tempMarker: " + tempMarker);
+        if(tempMarker != null){tempMarker.showInfoWindow();}
+        mainMenu.setVisibility(View.INVISIBLE);
+        myLocationButton.setVisibility(View.VISIBLE);
+        previewingStory = true;
+//        stopLocationUpdates();
+
+
+    }
+
+
+    public void goToViewStoryScreen(Story story, boolean adding){
         Intent viewStoryIntent = new Intent(this, ViewStoryActivity.class);
+        viewStoryIntent.putExtra(Constants.EXTRA_ADDED_KEY, adding);
         viewStoryIntent.putExtra(Constants.EXTRA_STORY_ID, story.id);
         viewStoryIntent.putExtra(Constants.EXTRA_STORY_NAME, story.name);
         viewStoryIntent.putExtra(Constants.EXTRA_STORY_CONTENT, story.content);
@@ -938,7 +1092,7 @@ public class MainActivity extends FragmentActivity implements
             return;
         }
         profileIntent.putExtra(Constants.PROFILE_ID, currentUserID);
-        startActivity(profileIntent);
+        startActivityForResult(profileIntent, Constants.PROFILE_REQUEST_CODE);
 
     }
 
@@ -968,11 +1122,24 @@ public class MainActivity extends FragmentActivity implements
                     Story story = storyList.get(i);
                     Log.d(TAG, "story: " + story.name);
                     Log.d(TAG, "viewStory: " + viewStory);
-                    Log.d(TAG, "does equals " + story.name.equals(viewStory));
-                    if (story.name.equals(viewStory)) {
+                    Log.d(TAG, "does equals " + story.id.equals(viewStory));
+                    if (story.id.equals(viewStory)) {
                         removeStory(story);
                     }
                 }
+                selectedStoryID = data.getExtras().getString(Constants.PROFILE_STORY_SELECTED_ID);
+                selectedStoryName = data.getExtras().getString(Constants.PROFILE_STORY_SELECTED_NAME);
+                selectedStoryCommentCount = data.getExtras().getInt(Constants.PROFILE_STORY_SELECTED_COMMENT_COUNT);
+                selectedStoryVoteCount = data.getExtras().getInt(Constants.PROFILE_STORY_SELECTED_VOTE_COUNT);
+                if(data.getExtras().getString(Constants.PROFILE_STORY_SELECTED_LATITUDE) != null ||
+                        data.getExtras().getString(Constants.PROFILE_STORY_SELECTED_LONGITUDE) != null){
+                    double lat = Double.parseDouble(data.getExtras().getString(Constants.PROFILE_STORY_SELECTED_LATITUDE));
+                    double lon = Double.parseDouble(data.getExtras().getString(Constants.PROFILE_STORY_SELECTED_LONGITUDE));
+                    selectedStoryLatLng = new LatLng(lat, lon);
+                    showMarkerOnMap(selectedStoryID, selectedStoryName, selectedStoryLatLng, selectedStoryCommentCount, selectedStoryVoteCount);
+
+                }
+
 
             }
             else if((requestCode == 2) && (resultCode == RESULT_OK)){
@@ -984,11 +1151,11 @@ public class MainActivity extends FragmentActivity implements
 
 //                Log.d(TAG, "currentUserID: " + currentUserID);
                 Firebase usersDB = new Firebase("https://astory.firebaseio.com/users");
-                usersDB.child(currentUserID).addValueEventListener(new ValueEventListener() {
+                usersDB.child(currentUserID).addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(DataSnapshot dataSnapshot) {
                         currentUser = dataSnapshot.getValue(DBUser.class);
-                        if(currentUser.getStories() != null){
+                        if (currentUser.getStories() != null) {
 //                            currentUserStories = currentUser.getStories();
                         }
 //                        Log.d(TAG, "currentUser: " +currentUser);
@@ -999,6 +1166,16 @@ public class MainActivity extends FragmentActivity implements
 
                     }
                 });
+            }else if((requestCode == Constants.PROFILE_REQUEST_CODE) && (resultCode == RESULT_OK)){
+                selectedStoryID = data.getExtras().getString(Constants.PROFILE_STORY_SELECTED_ID);
+                selectedStoryName = data.getExtras().getString(Constants.PROFILE_STORY_SELECTED_NAME);
+                selectedStoryCommentCount = data.getExtras().getInt(Constants.PROFILE_STORY_SELECTED_COMMENT_COUNT);
+                selectedStoryVoteCount = data.getExtras().getInt(Constants.PROFILE_STORY_SELECTED_VOTE_COUNT);
+                double lat = Double.parseDouble(data.getExtras().getString(Constants.PROFILE_STORY_SELECTED_LATITUDE));
+                double lon = Double.parseDouble(data.getExtras().getString(Constants.PROFILE_STORY_SELECTED_LONGITUDE));
+                selectedStoryLatLng = new LatLng(lat, lon);
+                showMarkerOnMap(selectedStoryID, selectedStoryName, selectedStoryLatLng, selectedStoryCommentCount, selectedStoryVoteCount);
+
             }
             viewStoryData = null;
         }
@@ -1020,7 +1197,8 @@ public class MainActivity extends FragmentActivity implements
             Story story = new Story();
             story.name = name;
             story.content = content;
-            story.id=name+currentUserID+System.currentTimeMillis();
+            story.id=sanitizeText(name + currentUserID + System.currentTimeMillis());
+            Log.d(TAG, "story.id: "+story.id);
             SimpleDateFormat s = new SimpleDateFormat("MMMM dd, yyyy", Locale.US);
             story.date = s.format(new Date());
             story.location = new LatLng(mCurrentLocation.getLatitude(),
@@ -1032,7 +1210,7 @@ public class MainActivity extends FragmentActivity implements
             addStoryToGeofenceList(story);
         addStoryGeofence();
 //            Log.d(TAG, "Definitely calls onFinishedInputDialog");
-        goToViewStoryScreen(story);
+        goToViewStoryScreen(story, true);
         startLocationUpdates();
         }
 
@@ -1117,23 +1295,103 @@ public class MainActivity extends FragmentActivity implements
         dpResult.init(year, month, day, null);
     }
 
+    public void addMainMenuListener(){
+        mainMenu = (FloatingActionsMenu) findViewById(R.id.main_menu);
+        mainMenu.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+            }
+        });
+    }
+
+    public void addAddStoryListener(){
+        addStory = (FloatingActionButton) findViewById(R.id.addStory);
+        addStory.setOnClickListener(new View.OnClickListener(){
+
+            @Override
+            public void onClick(View v) {
+                showDialog(v);
+//                mainMenu.collapse();
+            }
+        });
+    }
+
+    public void addViewProfileListener(){
+        viewProfile = (FloatingActionButton) findViewById(R.id.view_profile);
+        viewProfile.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View v){
+                goToProfile(v);
+//                mainMenu.collapseImmediately();
+            }
+        });
+    }
+
     public void addCalendarButtonListener(){
         calendarButton = (FloatingActionButton) findViewById(R.id.calendar_button);
         calendarButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                showDialog(DATE_DIALOG_ID);
+                if (date.equals("")) {
+                    showDialog(DATE_DIALOG_ID);
+                } else {
+                    calendarButton.setIcon(R.mipmap.ic_date_range_black_24dp);
+                    calendarButton.setTitle(getString(R.string.date_filter));
+                    date = "";
+                    handleDatabase(date);
+                }
+//                mainMenu.collapse();
+            }
+        });
+
+
+
+    }
+
+    public void addRecentStoriesButtonListener(){
+        recentStoriesButton = (FloatingActionButton) findViewById(R.id.all_stories_button);
+        recentStoriesButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if(date.equals("")) {
+                    recentStoriesButton.setIcon(R.mipmap.ic_restore_black_24dp);
+                    recentStoriesButton.setTitle(getString(R.string.all_stories));
+                    date = today;
+                    Collections.sort(storyList);
+                    mMap.clear();
+                    for(int i=0; i < storyList.size(); i++){
+                        if(i < Constants.RECENT_STORIES_COUNT){
+                            Log.d(TAG, "sorted Story is active"+storyList.get(i).active);
+                            addStoryToDevice(storyList.get(i));
+                        }else{
+                            storyList.remove(i);
+                        }
+                    }
+
+                    Toast.makeText(getApplicationContext(), "Showing recent stories", Toast.LENGTH_SHORT).show();
+
+                }else{
+                    recentStoriesButton.setIcon(R.mipmap.ic_whatshot_black_24dp);
+                    recentStoriesButton.setTitle(getString(R.string.recent_stories_button));
+                    date = "";
+                    handleDatabase(date);
+                }
+//                mainMenu.collapse();
             }
         });
 
     }
 
-    public void addAllStoriesButtonListener(){
-        allStoriesButton = (FloatingActionButton) findViewById(R.id.all_stories_button);
-        allStoriesButton.setOnClickListener(new View.OnClickListener() {
+    public void addMyLocationListener(){
+        myLocationButton = (FloatingActionButton) findViewById(R.id.localize);
+        myLocationButton.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View view) {
-                handleDatabase("");
+            public void onClick(View v) {
+                updateMap();
+                previewingStory = false;
+                myLocationButton.setVisibility(View.INVISIBLE);
+                mainMenu.setVisibility(View.VISIBLE);
             }
         });
     }
@@ -1175,11 +1433,14 @@ public class MainActivity extends FragmentActivity implements
             SimpleDateFormat s2 = new SimpleDateFormat("MMMM dd, yyyy", Locale.US);
             String storyDate = s2.format(d);
             Toast.makeText(getApplicationContext(), "Showing stories from "+storyDate, Toast.LENGTH_LONG).show();
+
 //            Log.d(TAG, "strDate: " + date);
 
 
             // set selected date into datepicker also
             dpResult.init(year, month, day, null);
+            calendarButton.setIcon(R.mipmap.ic_restore_black_24dp);
+            calendarButton.setTitle(getString(R.string.all_stories));
 
         }
     };
@@ -1195,7 +1456,7 @@ public class MainActivity extends FragmentActivity implements
         rootRef = new Firebase("https://astory.firebaseio.com/"+date);
         storiesDB = rootRef.child("stories");
         commentsDB = rootRef.child("comments");
-        usersDB = rootRef.child("users");
+//        usersDB = new Firebase("https://astory.firebaseio.com/users");
         masterRootRef = new Firebase("https://astory.firebaseio.com");
         masterStoriesDB = masterRootRef.child("stories");
         masterCommentsDB = masterRootRef.child("comments");

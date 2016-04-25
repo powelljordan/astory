@@ -3,6 +3,7 @@ package jordan.astory;
 import android.content.Context;
 import android.location.Address;
 import android.location.Geocoder;
+import android.os.AsyncTask;
 import android.text.Layout;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -24,6 +25,9 @@ public class UserStoriesAdapter extends ArrayAdapter<DBStory> {
 
     private ArrayList<DBStory> stories = new ArrayList<>();
     private String TAG = "jordan.astory.UserStoriesAdapter";
+    private Context appContext;
+    private DBStory story;
+    private UserStoriesAdapter ref = this;
 
     static class UserStoriesViewHolder{
         TextView title;
@@ -33,12 +37,15 @@ public class UserStoriesAdapter extends ArrayAdapter<DBStory> {
         TextView reactionCount;
     }
 
+    UserStoriesViewHolder viewHolder;
+
     public UserStoriesAdapter(Context context, int textViewResourceId, ArrayList<DBStory> stories){
         super(context,textViewResourceId, stories);
+        appContext = context;
     }
     @Override
     public int getCount() {
-        Log.d(TAG, "this: " + this);
+//        Log.d(TAG, "this: " + this);
         return this.stories.size();
     }
 
@@ -68,7 +75,6 @@ public class UserStoriesAdapter extends ArrayAdapter<DBStory> {
     @Override
     public View getView(int position, View convertView, ViewGroup parent) {
         View row = convertView;
-        UserStoriesViewHolder viewHolder;
         if(row == null){
             LayoutInflater inflater = (LayoutInflater) this.getContext().getSystemService(Context.LAYOUT_INFLATER_SERVICE);
             row = inflater.inflate(R.layout.profile_list_item, parent, false);
@@ -82,13 +88,10 @@ public class UserStoriesAdapter extends ArrayAdapter<DBStory> {
         }else{
             viewHolder = (UserStoriesViewHolder)row.getTag();
         }
-        DBStory story = getItem(position);
-        Log.d(TAG, "story: "+story);
-        Log.d(TAG, "story.content: "+story.getContent());
+        story = getItem(position);
         viewHolder.title.setText(story.getName());
         viewHolder.date.setText(story.getDate());
-        Log.d(TAG, "commentCount: " + story.getCommentCount());
-        Log.d(TAG, "voteCount: "+story.getVoteCount());
+        viewHolder.city.setText(story.getCity());
         if(story.getVoteCount() == null){
             viewHolder.reactionCount.setText("0");
         }else {
@@ -100,18 +103,8 @@ public class UserStoriesAdapter extends ArrayAdapter<DBStory> {
         }else {
             viewHolder.commentCount.setText(Integer.toString(story.getCommentCount()));
         }
-
-
-        Geocoder gcd = new Geocoder(this.getContext(), Locale.getDefault());
-        List<Address> addresses = null;
-        try {
-            addresses = gcd.getFromLocation(Double.parseDouble(story.getLatitude()),
-                    Double.parseDouble(story.getLongitude()), 1);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        if (addresses.size() > 0)
-            viewHolder.city.setText(addresses.get(0).getLocality());
         return row;
     }
+
+
 }

@@ -5,6 +5,7 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.support.v4.app.NotificationCompat;
@@ -16,6 +17,7 @@ import com.google.android.gms.location.Geofence;
 import com.google.android.gms.location.GeofencingEvent;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 /**
@@ -73,6 +75,7 @@ public class GeofenceTransitionsIntentService extends IntentService {
                 geofenceNames.add(geo.getRequestId());
             }
             Intent messageIntent = new Intent();
+
             messageIntent.setAction(Constants.MY_ACTION);
             messageIntent.putExtra("TRANSITION", geofenceTransition);
             messageIntent.putExtra("DATAPASSED", geofenceNames);
@@ -95,11 +98,40 @@ public class GeofenceTransitionsIntentService extends IntentService {
 //                    oldGeofences.add(g);
 //                }
 //            }
-            Log.d(TAG, "notify: "+notify);
+            Log.d(TAG, "notify: " + notify);
             if(notify && geofenceTransition == Geofence.GEOFENCE_TRANSITION_ENTER) {
 //                sendNotification("There are stories near you!");
             }
             Log.i(TAG, geofenceTransitionDetails);
+            HashSet<String> myStories;
+            HashSet<String> seenStories;
+            SharedPreferences  mSharedPreferences = getSharedPreferences(Constants.SHARED_PREFERENCES_NAME, MODE_PRIVATE);
+            myStories = new HashSet<>(mSharedPreferences.getStringSet(Constants.MY_STORIES_KEY, new HashSet<String>()));
+            seenStories = new HashSet<>(mSharedPreferences.getStringSet(Constants.SEEN_STORIES, new HashSet<String>()));
+            SharedPreferences.Editor editor = mSharedPreferences.edit();
+            boolean willNotify = false;
+            int count = 0;
+            Log.d(TAG, "myStories: " + myStories);
+            for(Geofence g : triggeringGeofences){
+                if(geofenceTransition == Geofence.GEOFENCE_TRANSITION_ENTER && !myStories.contains(g.getRequestId())){
+                    myStories.add(g.getRequestId());
+                    if(!seenStories.contains(g.getRequestId()))
+                        willNotify = true;
+                        count += 1;
+                }
+            }
+            editor.putStringSet(Constants.MY_STORIES_KEY, myStories);
+            editor.apply();
+//            if(willNotify && !mSharedPreferences.getBoolean("active", true)){
+            if(willNotify){
+                willNotify = false;
+                if(count == 1){
+                    sendNotification("There's a new story near you");
+                }else{
+                    sendNotification("There are "+count+" new stories near you!");
+                }
+            }
+
         } else {
             // Log the error.
             Log.e(TAG, getString(R.string.geofence_transition_invalid_type, geofenceTransition));
@@ -157,11 +189,11 @@ public class GeofenceTransitionsIntentService extends IntentService {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
 
         // Define the notification settings.
-        builder.setSmallIcon(R.mipmap.ic_launcher)
+        builder.setSmallIcon(R.mipmap.astory_logo4)
                 // In a real app, you may want to use a library like Volley
                 // to decode the Bitmap.
                 .setLargeIcon(BitmapFactory.decodeResource(getResources(),
-                        R.mipmap.ic_launcher))
+                        R.mipmap.astory_logo4))
                 .setColor(Color.RED)
                 .setContentTitle(notificationDetails)
                 .setContentText(getString(R.string.geofence_transition_notification_text))

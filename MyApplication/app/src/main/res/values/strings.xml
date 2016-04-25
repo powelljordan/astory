@@ -55,6 +55,13 @@
     <string name="record_video">Add Video</string>
     <string name="add_media">Multimedia</string>
     <string name="vote_count"></string>
+    <string name="generic">Generic</string>
+    <string name="happy">Happy</string>
+    <string name="sad">Sad</string>
+    <string name="mad">Mad</string>
+    <string name="surprised">Surprise</string>
+    <string name="save">Save Story</string>
+    <string name="time_travel">360 Video</string>
 
     <!--Comment Activity Strings-->
     <string name="send_button">Send</string>
@@ -73,6 +80,10 @@
     <!--Map Page Strings-->
     <string name="calendar_button">Calendar</string>
     <string name="all_stories_button">All Stories</string>
+    <string name="recent_stories_button">Recent Stories</string>
+    <string name="out_of_range">You\'re too far away to view this story. Move closer to access it.
+        Click on this window and we\'ll show you how to get there.</string>
+    <string name="directions">Get directions to this story</string>
 
     <!--User Page Strings-->
     <string name="user_page">User</string>

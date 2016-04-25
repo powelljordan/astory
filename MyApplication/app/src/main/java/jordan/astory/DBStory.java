@@ -16,7 +16,9 @@ public class DBStory {
     private String date;
     private String latitude;
     private String longitude;
+    private String city;
     private String mediaUri;
+    private String youtubeVideoID;
     private String mediaType;
     private String mediaUpdated;
     private int voteCount;
@@ -58,8 +60,20 @@ public class DBStory {
         return longitude;
     }
 
+    public String getCity(){
+        return city;
+    }
+
+    public void setCity(String c){
+        city = c;
+    }
+
     public String getMediaUri(){
         return mediaUri;
+    }
+
+    public String getYoutubeVideoID(){
+        return youtubeVideoID;
     }
 
     public String getMediaType(){

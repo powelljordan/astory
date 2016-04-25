@@ -12,7 +12,7 @@ public final class Constants {
     private Constants(){
     }
 
-    public static final String PACKAGE_NAME = "edu.mit.astory";
+    public static final String PACKAGE_NAME = "jordan.astory";
 
     public static final String SHARED_PREFERENCES_NAME = PACKAGE_NAME + ".SHARED_PREFERENCES_NAME";
 
@@ -58,6 +58,7 @@ public final class Constants {
     }
 
     public static final HashMap<String, Story> STORY_LOCATIONS = new HashMap<>();
+    public final static int RECENT_STORIES_COUNT = 5;
 
     public final static String EXTRA_STORY_ID = "jordan.astory.STORY_ID";
     public final static String EXTRA_STORY_CONTENT = "jordan.astory.STORY_CONTENT";
@@ -69,6 +70,7 @@ public final class Constants {
     public final static String EXTRA_CURRENT_USER = "jordan.astory.CURRENT_USER";
     public final static String EXTRA_USER_ID = "jordan.astory.USER_ID";
     public final static String VIEW_STORY_KEY = "jordan.astory.STORY_KEY";
+    public final static String MY_STORIES_KEY = "jordan.astory.MY_STORIES_KEY";
     public final static String EXTRA_STORY_COMMENT = "jordan.astory.STORY_COMMENT";
     public final static String EXTRA_COMMENT_STORY_ID="jordan.astory.EXTRA_COMMENT_STORY_ID";
     public final static String UPVOTED_STORIES = "jordan.astory.UPVOTED_STORIES";
@@ -77,6 +79,7 @@ public final class Constants {
     public final static String MAD_STORIES = "jordan.astory.MAD_STORIES";
     public final static String SURPRISED_STORIES = "jordan.astory.SURPRISED_STORIES";
     public final static String SEEN_STORIES = "jordan.astory.SEEN_STORIES";
+    public final static String EXTRA_ADDED_KEY = "jordan.astory.ADDED_KEY";
 
 
     public final static String CURRENT_USER_ID = "jordan.astory.CURRENT_USER_ID";
@@ -109,5 +112,23 @@ public final class Constants {
     public final static String PROFILE_CURRENT_USER = "jordan.astory.PROFILE_CURRENT_USER";
     public final static String PROFILE_AUTHOR = "jordan.astory.PROFILE_AUTHOR";
     public final static String PROFILE_ID = "jordan.astory.PROFILE_ID";
+    public final static String PROFILE_STORY_SELECTED_ID = "jordan.astoroy.PROFILE_STORY_SELECTED_ID";
+    public final static String PROFILE_STORY_SELECTED_NAME = "jordan.astory.PROFILE_STORY_SELECTED_NAME";
+    public final static String PROFILE_STORY_SELECTED_LATITUDE = "jordan.astory.PROFILE_STORY_SELECTED_LATITUDE";
+    public final static String PROFILE_STORY_SELECTED_LONGITUDE = "jordan.astory.PROFILE_STORY_SELECTED_LONGITUDE";
+    public final static String PROFILE_STORY_SELECTED = "jordan.astory.PROFILE_STORY_SELECTED";
+    public final static String PROFILE_STORY_SELECTED_COMMENT_COUNT = "jordan.astory.PROFILE_STORY_SELECTED_COMMENT_COUNT";
+    public final static String PROFILE_STORY_SELECTED_VOTE_COUNT = "jordan.astory.PROFILE_STORY_SELECTED_VOTE_COUNT";
     public final static int PROFILE_REQUEST_CODE = 15;
+
+//    Permission Stuff
+    public final static int PERMISSIONS_REQUEST_CODE = 42;
+
+    public final static String[] LOCATION_PERMS = {
+            "android.permission.ACCESS_COARSE_LOCATION",
+            "android.permission.ACCESS_FINE_LOCATION"};
+
+    public final static String[] STORAGE_PERMS = {
+            "android.permission.WRITE_EXTERNAL_STORAGE",
+            "android.permission.READ_EXTERNAL_STORAGE"};
 }

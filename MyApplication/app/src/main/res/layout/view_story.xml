@@ -19,13 +19,14 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:id="@+id/user"
+                    android:clickable="true"
+                    android:onClick="goToProfile"
                     android:paddingLeft="10dp">
                     <ImageView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="bottom"
                         android:id="@+id/avatar"
-                        android:onClick="goToProfile"
                         android:src="@mipmap/ic_person_black_24dp"/>
                     <TextView
                         android:paddingTop="10dp"
@@ -100,6 +101,15 @@
                     android:text="@string/vote_count"/>
             </RelativeLayout>
 
+            <EditText
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:paddingTop="30dp"
+                android:gravity="center"
+                android:textSize="40dp"
+                android:textAppearance="?android:attr/textAppearanceLarge"
+                android:visibility="gone"
+                android:id="@+id/view_story_name_edit" />
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
@@ -108,7 +118,7 @@
                 android:text="Test"
                 android:textSize="40dp"
                 android:textAppearance="?android:attr/textAppearanceLarge"
-                android:id="@+id/view_story_name" />
+                android:id="@+id/view_story_name"/>
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -127,12 +137,39 @@
                 android:id="@+id/view_story_content"
                 android:paddingBottom="20dp"
                  />
+
+            <EditText
+                android:paddingTop="20dp"
+                android:paddingLeft="20dp"
+                android:paddingRight="20dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textAppearance="?android:attr/textAppearanceMedium"
+                android:id="@+id/view_story_content_edit"
+                android:paddingBottom="20dp"
+                android:visibility="gone"
+                />
+            <ProgressBar
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/progress"
+                android:visibility="gone"
+                style="@android:style/Widget.Holo.Light.ProgressBar.Horizontal" />
             <WebView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:visibility="invisible"
                 android:id="@+id/view_story_webview"></WebView>
+            <!--<Button-->
+                <!--android:visibility="invisible"-->
+                <!--android:layout_width="match_parent"-->
+                <!--android:layout_height="wrap_content"-->
+                <!--android:id="@+id/timeTravel"-->
+                <!--android:text="@string/time_travel"-->
+                <!--android:layout_centerVertical="true"-->
+                <!--android:layout_alignParentLeft="true"-->
+                <!--android:layout_alignParentStart="true" />-->
             <ImageView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -147,16 +184,10 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:visibility="invisible">
-        <Button
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Drop"/>
-    </LinearLayout>
+        android:visibility="visible"></LinearLayout>
 
         <com.getbase.floatingactionbutton.FloatingActionsMenu
-            android:id="@+id/multiple_actions"
+            android:id="@+id/view_story_main_menu"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentBottom="true"
@@ -169,7 +200,24 @@
             android:layout_marginBottom="16dp"
             android:layout_marginRight="16dp"
             android:layout_marginEnd="16dp">
-
+            <com.getbase.floatingactionbutton.FloatingActionButton
+                android:id="@+id/save"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                fab:fab_colorNormal="@color/green"
+                fab:fab_title="@string/save"
+                fab:fab_icon="@mipmap/ic_check_circle_black_24dp"
+                fab:fab_colorPressed="@color/white_pressed"/>
+            <com.getbase.floatingactionbutton.FloatingActionButton
+                android:id="@+id/timeTravel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                fab:fab_colorNormal="@color/white"
+                fab:fab_title="@string/time_travel"
+                fab:fab_icon="@mipmap/timetravel_24dp"
+                fab:fab_colorPressed="@color/white_pressed"/>
             <com.getbase.floatingactionbutton.FloatingActionButton
                 android:id="@+id/upvote"
                 android:layout_width="wrap_content"
@@ -183,6 +231,7 @@
                 android:id="@+id/takePicture"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:visibility="gone"
                 fab:fab_colorNormal="@color/white"
                 fab:fab_title="@string/take_picture"
                 fab:fab_icon="@mipmap/ic_photo_camera_black_24dp"
@@ -192,6 +241,7 @@
                 android:id="@+id/recordVideo"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:visibility="gone"
                 fab:fab_colorNormal="@color/white"
                 fab:fab_title="@string/record_video"
                 fab:fab_icon="@mipmap/ic_videocam_black_24dp"
@@ -208,6 +258,8 @@
                 fab:fab_colorPressed="@color/white_pressed"/>
 
         </com.getbase.floatingactionbutton.FloatingActionsMenu>
+
+
 
 
 </RelativeLayout>
