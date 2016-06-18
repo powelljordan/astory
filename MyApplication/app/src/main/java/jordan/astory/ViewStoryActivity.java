@@ -19,6 +19,7 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
 import android.provider.MediaStore;
+import android.support.annotation.NonNull;
 import android.support.v4.app.DialogFragment;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
@@ -58,6 +59,14 @@ import com.getbase.floatingactionbutton.FloatingActionButton;
 import com.getbase.floatingactionbutton.FloatingActionsMenu;
 import com.google.android.gms.location.Geofence;
 import com.google.android.gms.location.GeofencingRequest;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.OnProgressListener;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
 
 import org.w3c.dom.Text;
 
@@ -71,8 +80,10 @@ import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 
@@ -90,6 +101,9 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
 
     // directory name to store captured images and videos
     private static final String IMAGE_DIRECTORY_NAME = "aStory";
+
+
+    private DBStory currentStory;
 
     private Uri fileUri; // file url to store image/video
     private URL fileURL;
@@ -119,7 +133,7 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
     private Set<String> madStories;
     private Set<String> surprisedStories;
     private Set<String> seenStories;
-    private Uri mediaUri;
+    private String mediaUri;
     private String youtubeVideoID;
     private ImageButton deleteButton;
     private ProgressBar progressBar;
@@ -158,7 +172,7 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
     public FloatingActionButton saveButton;
 
     private boolean adding;
-    private boolean loadingMedia;
+    private boolean shouldLoadMedia = true;
 
     private Permissions permissions;
     private Boolean storageAccepted;
@@ -166,11 +180,17 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
     private SharedPreferences mSharedPreferences;
     private String TAG = "ViewStoryActivity";
 
+    private FirebaseStorage storage;
+    private StorageReference storageRef;
+
     @Override
     public void onCreate(Bundle savedInstanceState){
         super.onCreate(savedInstanceState);
+        Firebase.setAndroidContext(this);
         setContentView(R.layout.view_story);
         Intent intent = getIntent();
+        storage = FirebaseStorage.getInstance();
+        storageRef = storage.getReferenceFromUrl("gs://project-2330988829986143534.appspot.com");
 
         Firebase credentialsRef = new Firebase("https://astory.firebaseio.com");
         if(credentialsRef.getAuth() == null) {
@@ -191,7 +211,6 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
         date = intent.getStringExtra(Constants.EXTRA_STORY_DATE);
         currentUser = intent.getStringExtra(Constants.EXTRA_CURRENT_USER);
         dateKey = intent.getStringExtra(Constants.EXTRA_STORY_DATE_KEY);
-        loadingMedia = false;
 
         mainMenu = (FloatingActionsMenu) findViewById(R.id.view_story_main_menu);
 
@@ -214,7 +233,6 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
         handleCaptureButtons(intent);
         Log.d(TAG, "author: " + author);
         webView = (WebView) findViewById(R.id.view_story_webview);
-        loadMedia();
         //Delete move button
         deleteButton = (ImageButton) findViewById(R.id.delete_story_button);
         if(currentUserID.equals(uid)){
@@ -392,27 +410,28 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
         storiesDB.child(storyId).addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
-                if(dataSnapshot.getValue(DBStory.class) == null){
+                currentStory = dataSnapshot.getValue(DBStory.class);
+                if(currentStory == null){
                     return;
                 }
-                viewCount = dataSnapshot.getValue(DBStory.class).getViewCount();
+                viewCount = currentStory.getViewCount();
                 addToViewCount();
-                Log.d(TAG, "youtubeVideoID: " + dataSnapshot.getValue(DBStory.class).getYoutubeVideoID());
-                if(dataSnapshot.getValue(DBStory.class).getYoutubeVideoID() != null){
+                Log.d(TAG, "youtubeVideoID: " + currentStory.getYoutubeVideoID());
+                if(currentStory.getYoutubeVideoID() != null){
                     //Make button visible
-                    youtubeVideoID = dataSnapshot.getValue(DBStory.class).getYoutubeVideoID();
+                    youtubeVideoID = currentStory.getYoutubeVideoID();
                     timeTravel.setVisibility(View.VISIBLE);
                 }
                 if(!currentUserID.equals(uid)) {
                     TextView count = (TextView) findViewById(R.id.vote_count);
-                    if(dataSnapshot.getValue(DBStory.class)!= null) {
-                        if (dataSnapshot.getValue(DBStory.class).getVoteCount() != null) {
-                            vote_count = dataSnapshot.getValue(DBStory.class).getVoteCount();
-                            happy_count = dataSnapshot.getValue(DBStory.class).getHappyCount();
-                            sad_count = dataSnapshot.getValue(DBStory.class).getSadCount();
-                            mad_count = dataSnapshot.getValue(DBStory.class).getMadCount();
-                            surprised_count = dataSnapshot.getValue(DBStory.class).getSurprisedCount();
-                            count.setText("+" + dataSnapshot.getValue(DBStory.class).getVoteCount().toString());
+                    if(currentStory!= null) {
+                        if (currentStory.getVoteCount() != null) {
+                            vote_count = currentStory.getVoteCount();
+                            happy_count = currentStory.getHappyCount();
+                            sad_count = currentStory.getSadCount();
+                            mad_count = currentStory.getMadCount();
+                            surprised_count = currentStory.getSurprisedCount();
+                            count.setText("+" + currentStory.getVoteCount().toString());
                             if(happy_count > 0){
                                 happy.setVisibility(View.VISIBLE);
                             }else{
@@ -475,7 +494,6 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
             @Override
             public void onClick(View v) {
                 // capture picture
-                loadingMedia = false;
                 webView = (WebView) findViewById(R.id.view_story_webview);
                 permissions.checkForPermissions(Constants.STORAGE_PERMS);
                 captureImage();
@@ -491,7 +509,6 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
             @Override
             public void onClick(View v) {
                 // record video
-                loadingMedia = false;
                 webView = (WebView) findViewById(R.id.view_story_webview);
                 permissions.checkForPermissions(Constants.STORAGE_PERMS);
                 recordVideo();
@@ -563,48 +580,65 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
                 .addValueEventListener(new ValueEventListener() {
                     @Override
                     public void onDataChange(DataSnapshot dataSnapshot) {
-                        DBStory dbStory = dataSnapshot.getValue(DBStory.class);
-                        if (dbStory != null && dbStory.getMediaUri() != null && mediaUpToDate(dbStory)) {
-                            Log.d(TAG, "Really? All these things are true");
+                        currentStory = dataSnapshot.getValue(DBStory.class);
+                        //If there's a URL present and it's up to date
+                        if (currentStory != null && currentStory.getMediaUri() != null && mediaUpToDate(currentStory)) {
+                            Log.d(TAG, "URL present an up to date");
+                            mediaUri = currentStory.getMediaUri();
                             try {
-                                fileURL = new URL(dbStory.getMediaUri());
+                                //Try to create a URL object that can be loaded into a webview
+                                fileURL = new URL(currentStory.getMediaUri());
                             } catch (MalformedURLException e) {
                                 e.printStackTrace();
                             }
-                            mediaType = dbStory.getMediaType();
-                            Log.d(TAG, "Loading media: "+loadingMedia);
-                            if (mediaType.equals("image")) {
-                                syncMedia(fileURL);
-                                if(!loadingMedia) {
-                                    loadMedia();
+                            mediaType = currentStory.getMediaType();
+                            //If the media type is valid, then load it into the webview
+                            if ((currentStory.getMediaType().equals("image") || currentStory.getMediaType().equals("video")) && shouldLoadMedia) {
+                                if(currentStory.getMediaUri() != null){
+                                    loadMedia(currentStory.getMediaUri());
+                                }else{
+                                    Toast.makeText(getApplicationContext(), "currentStory media uri is null", Toast.LENGTH_LONG).show();
                                 }
-
-                            } else if (mediaType.equals("video")) {
-                                syncMedia(fileURL);
-                                if(!loadingMedia){
-                                    loadMedia();
-                                }
+                                shouldLoadMedia = false;
                             }
-                        } else if (dbStory != null && dbStory.getMediaType() != null && !mediaUpToDate(dbStory)) {
-                            mediaType = dbStory.getMediaType();
-                            Log.d(TAG, "media Type: " + mediaType);
-                            if (dbStory.getMediaType().equals("image")) {
-                                new getUri().execute("image/jpeg");
-                                storiesDB.child(storyId).child("mediaUpdated").setValue(System.currentTimeMillis());
+                          //If there's a URL presen but it's not up to date
+                        } else if (currentStory != null && currentStory.getMediaType() != null && !mediaUpToDate(currentStory)) {
+                            mediaType = currentStory.getMediaType();
+                            if (currentStory.getMediaType().equals("image")) {
+//                                new getUri().execute("image/jpeg");
+                                storiesDB.child(storyId).child(
+                                        "mediaUpdated").setValue(System.currentTimeMillis());
                                 if (date != null) {
                                     masterStoriesDB.child(storyId).child("mediaUpdated").setValue(System.currentTimeMillis());
 
                                 }
-                            } else if (dbStory.getMediaType().equals("video")) {
-                                new getUri().execute("video/mp4");
+                            } else if (currentStory.getMediaType().equals("video")) {
+//                                new getUri().execute("video/mp4");
                                 storiesDB.child(storyId).child("mediaUpdated").setValue(System.currentTimeMillis());
                                 if (date != null) {
                                     masterStoriesDB.child(storyId).child("mediaUpdated").setValue(System.currentTimeMillis());
                                 }
                             }
-                            loadMedia();
+//                            loadMedia();
 
                         }
+                    }
+
+                    @Override
+                    public void onCancelled(FirebaseError firebaseError) {
+
+                    }
+                });
+
+        storiesDB.child(storyId).child("mediaUri")
+                .addValueEventListener(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(DataSnapshot dataSnapshot) {
+                        Log.d(TAG, "media Uri event");
+                        Log.d(TAG, "Media Uri Event dataSnapshot: "+dataSnapshot.getValue());
+//                        Log.d(TAG, "Media Uri Event mediaUpToDate: "+mediaUpToDate(currentStory));
+                        shouldLoadMedia = true;
+
                     }
 
                     @Override
@@ -635,7 +669,7 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
             storiesDB.child(storyId).addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override
                 public void onDataChange(DataSnapshot dataSnapshot) {
-                    String originalDate = dataSnapshot.getValue(DBStory.class).getDate();
+                        String originalDate = dataSnapshot.getValue(DBStory.class).getDate();
                     if(originalDate == null){
                         originalDate = "January 15, 2016";
                     }
@@ -740,6 +774,10 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         // if the result is capturing Image
         Bitmap bitmap = null;
+        FirebaseDatabase database = FirebaseDatabase.getInstance();
+        final DatabaseReference mDatabase = database.getReference();
+
+
         if(requestCode == Constants.PROFILE_REQUEST_CODE && resultCode == RESULT_OK){
             Intent resultIntent = new Intent();
             resultIntent.putExtra(Constants.PROFILE_STORY_SELECTED_ID, data.getStringExtra(Constants.PROFILE_STORY_SELECTED_ID));
@@ -756,39 +794,87 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
         if (requestCode == CAMERA_CAPTURE_IMAGE_REQUEST_CODE) {
             if (resultCode == RESULT_OK) {
                 progressBar.setVisibility(View.VISIBLE);
-                // successfully captured the image
-//                // compress it and save it in the same location
-//                FileOutputStream fos = null;
-//                try {
-//                    bitmap = BitmapFactory.decodeStream(new FileInputStream(getOutputMediaFile(MEDIA_TYPE_IMAGE)));
-//                    fos = new FileOutputStream(filePath);
-//                    bitmap.compress(Bitmap.CompressFormat.JPEG, 25, fos);
-//                    fos.flush();
-//                    fos.close();
-//                } catch (FileNotFoundException e1) {
-//                    e1.printStackTrace();
-//                }catch (IOException e) {
-//                    e.printStackTrace();
-//                }
+//                webView.setVisibility(View.INVISIBLE);
+                StorageReference imagesRef = storageRef.child("images");
+                Uri imageFile = Uri.fromFile(mediaFile);
+                final Firebase credentialsRef = new Firebase("https://astory.firebaseio.com");
+                Log.d(TAG, "authentication status: "+credentialsRef.getAuth());
+                UploadTask uploadTask = imagesRef.child(storyId).putFile(imageFile);
 
-//                // display it in web view
-//                Log.d(TAG, "absolute path: "+getOutputMediaFile(MEDIA_TYPE_IMAGE).getAbsolutePath());
-                webView.setVisibility(View.INVISIBLE);
-//                ImageView myImage = (ImageView) findViewById(R.id.view_story_imageview);
-//                Bitmap myBitmap = BitmapFactory.decodeFile(new File(filePath).getAbsolutePath());
-//                myImage.setImageBitmap(myBitmap);
-//                int nh = (int) ( myBitmap.getHeight() * (2000.0 / myBitmap.getWidth()) );
-//                Bitmap scaled = Bitmap.createScaledBitmap(myBitmap, 2000, nh, true);
-//                Matrix matrix = new Matrix();
-//
-//                matrix.postRotate(90);
-//
-//                Bitmap scaledBitmap = Bitmap.createScaledBitmap(scaled,scaled.getWidth(),scaled.getHeight(),true);
-//
-//                Bitmap rotated = Bitmap.createBitmap(scaledBitmap , 0, 0, scaledBitmap .getWidth(), scaledBitmap .getHeight(), matrix, true);
-//                myImage.setImageBitmap(rotated);
-                loadingMedia = true;
-                new UploadMedia().execute();
+
+                if(!dateKey.equals("")){
+                    DatabaseReference masterMediaDB = mDatabase.child("stories").child(storyId);
+                    DatabaseReference mediaDB = mDatabase.child(dateKey).child("stories").child(storyId);
+                    //Media Uri
+                    masterMediaDB.child("mediaType").setValue("image");
+                    mediaDB.child("mediaType").setValue("image");
+
+
+                }else {
+                    DatabaseReference masterMediaDB = mDatabase.child("stories").child(storyId);
+                    DatabaseReference mediaDB = mDatabase.child(today).child("stories").child(storyId);
+                    //Media Uri
+                    masterMediaDB.child("mediaType").setValue("image");
+                    mediaDB.child("mediaUri").setValue("image");
+                }
+
+                uploadTask.addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Toast.makeText(getApplicationContext(), "Upload Failed: "+e, Toast.LENGTH_LONG).show();
+                        Log.d(TAG, "Upload Failed: "+e);
+                        Log.d(TAG, "authentication status: "+credentialsRef.getAuth());
+                    }
+                });
+
+                uploadTask.addOnProgressListener(new OnProgressListener<UploadTask.TaskSnapshot>() {
+                    @Override
+                    public void onProgress(UploadTask.TaskSnapshot taskSnapshot) {
+                        Log.d(TAG, "Bytes Transferred: "+taskSnapshot.getBytesTransferred());
+                        Log.d(TAG, "Total Bytes: "+taskSnapshot.getTotalByteCount());
+                        double progress = 100.0 * ((float)taskSnapshot.getBytesTransferred() / taskSnapshot.getTotalByteCount());
+                        progressBar.setProgress((int)progress);
+                        if((int)progress == 100){
+                            Toast.makeText(getApplicationContext(), "Upload Complete", Toast.LENGTH_SHORT).show();
+                            progressBar.setVisibility(View.GONE);
+                        }
+                        Log.d(TAG, "progress: " +  taskSnapshot.getBytesTransferred() / taskSnapshot.getTotalByteCount());
+
+                    }
+                });
+
+                uploadTask.addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                    @Override
+                    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                        Toast.makeText(getApplicationContext(), "Upload Success", Toast.LENGTH_SHORT).show();
+                        Log.d(TAG, "tasksnapshot "+taskSnapshot.getDownloadUrl());
+                        Uri downloadLink = taskSnapshot.getDownloadUrl();
+                        Map<String, Object> updateUri = new HashMap();
+                        updateUri.put("mediaUri", downloadLink.toString());
+                        Log.d(TAG, "downloadLink: "+downloadLink);
+                        Log.d(TAG, "mDatabase: " + mDatabase);
+
+                        if(!dateKey.equals("")){
+                            DatabaseReference masterMediaDB = mDatabase.child("stories").child(storyId);
+                            DatabaseReference mediaDB = mDatabase.child(dateKey).child("stories").child(storyId);
+                            //Media Uri
+                            masterMediaDB.child("mediaUri").setValue(downloadLink.toString());
+                            mediaDB.child("mediaUri").setValue(downloadLink.toString());
+
+
+                        }else {
+                            DatabaseReference masterMediaDB = mDatabase.child("stories").child(storyId);
+                            DatabaseReference mediaDB = mDatabase.child(today).child("stories").child(storyId);
+                            //Media Uri
+                            masterMediaDB.child("mediaUri").setValue(downloadLink.toString());
+                            mediaDB.child("mediaUri").setValue(downloadLink.toString());
+                        }
+
+                        loadMedia(downloadLink.toString());
+
+                    }
+                });
+//                new UploadMedia().execute();
                 mediaType = "image";
                 storiesDB.child(storyId).child("mediaUpdated").setValue(System.currentTimeMillis());
                 if(date != null) {
@@ -811,18 +897,93 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
                 progressBar.setVisibility(View.VISIBLE);
                 // video successfully recorded
                 // preview the recorded video
-                webView.setVisibility(View.INVISIBLE);
-                VideoView myVideoView = (VideoView) findViewById(R.id.view_story_videoview);
+//                webView.setVisibility(View.INVISIBLE);
                 Log.d(TAG, "Set video URI");
-//                myVideoView.setVideoURI(fileUri);
-                loadingMedia = true;
-                new UploadMedia().execute();
+//                new UploadMedia().execute();
+
+
+                StorageReference videosRef = storageRef.child("video");
+                Uri videoFile = Uri.fromFile(mediaFile);
+                UploadTask uploadTask = videosRef.child(storyId).putFile(videoFile);
+
+
+                if(!dateKey.equals("")){
+                    DatabaseReference masterMediaDB = mDatabase.child("stories").child(storyId);
+                    DatabaseReference mediaDB = mDatabase.child(dateKey).child("stories").child(storyId);
+                    //Media Uri
+                    masterMediaDB.child("mediaType").setValue("video");
+                    mediaDB.child("mediaType").setValue("video");
+
+
+                }else {
+                    DatabaseReference masterMediaDB = mDatabase.child("stories").child(storyId);
+                    DatabaseReference mediaDB = mDatabase.child(today).child("stories").child(storyId);
+                    //Media Uri
+                    masterMediaDB.child("mediaType").setValue("video");
+                    mediaDB.child("mediaUri").setValue("video");
+                }
+
+                uploadTask.addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Toast.makeText(getApplicationContext(), "Upload Failed: "+e, Toast.LENGTH_LONG).show();
+                        Log.d(TAG, "Upload Failed: "+e);
+                    }
+                });
+
+                uploadTask.addOnProgressListener(new OnProgressListener<UploadTask.TaskSnapshot>() {
+                    @Override
+                    public void onProgress(UploadTask.TaskSnapshot taskSnapshot) {
+                        Log.d(TAG, "Bytes Transferred: "+taskSnapshot.getBytesTransferred());
+                        Log.d(TAG, "Total Bytes: "+taskSnapshot.getTotalByteCount());
+                        double progress = 100.0 * ((float)taskSnapshot.getBytesTransferred() / taskSnapshot.getTotalByteCount());
+                        progressBar.setProgress((int)progress);
+                        if((int)progress == 100){
+                            Toast.makeText(getApplicationContext(), "Upload Complete", Toast.LENGTH_SHORT).show();
+                            progressBar.setVisibility(View.GONE);
+                        }
+                        Log.d(TAG, "progress: " +  taskSnapshot.getBytesTransferred() / taskSnapshot.getTotalByteCount());
+
+                    }
+                });
+
+                uploadTask.addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                    @Override
+                    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                        Toast.makeText(getApplicationContext(), "Upload Success", Toast.LENGTH_SHORT).show();
+                        Log.d(TAG, "tasksnapshot "+taskSnapshot.getDownloadUrl());
+                        Uri downloadLink = taskSnapshot.getDownloadUrl();
+                        Map<String, Object> updateUri = new HashMap();
+                        updateUri.put("mediaUri", downloadLink.toString());
+                        Log.d(TAG, "downloadLink: "+downloadLink);
+                        Log.d(TAG, "mDatabase: " + mDatabase);
+
+                        if(!dateKey.equals("")){
+                            DatabaseReference masterMediaDB = mDatabase.child("stories").child(storyId);
+                            DatabaseReference mediaDB = mDatabase.child(dateKey).child("stories").child(storyId);
+                            //Media Uri
+                            masterMediaDB.child("mediaUri").setValue(downloadLink.toString());
+                            mediaDB.child("mediaUri").setValue(downloadLink.toString());
+
+
+                        }else {
+                            DatabaseReference masterMediaDB = mDatabase.child("stories").child(storyId);
+                            DatabaseReference mediaDB = mDatabase.child(today).child("stories").child(storyId);
+                            //Media Uri
+                            masterMediaDB.child("mediaUri").setValue(downloadLink.toString());
+                            mediaDB.child("mediaUri").setValue(downloadLink.toString());
+                        }
+
+                        loadMedia(downloadLink.toString());
+
+                    }
+                });
                 mediaType = "video";
                 storiesDB.child(storyId).child("mediaUpdated").setValue(System.currentTimeMillis());
                 if(date != null) {
                     masterStoriesDB.child(storyId).child("mediaUpdated").setValue(System.currentTimeMillis());
                 }
-                new getUri().execute("video/mp4");
+//                new getUri().execute("video/mp4");
             } else if (resultCode == RESULT_CANCELED) {
                 // user cancelled recording
                 Toast.makeText(getApplicationContext(),
@@ -892,17 +1053,18 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
 
 
     public boolean mediaUpToDate(DBStory story){
-        if(story.getMediaUpdated() == null){
-            return false;
-        }
-        else{
-            if((System.currentTimeMillis() - Double.parseDouble(story.getMediaUpdated())) < 15*60*1000){
-                Log.d(TAG, "last updated "+(System.currentTimeMillis() - Double.parseDouble(story.getMediaUpdated())));
-                return true;
-            }else{
-                return false;
-            }
-        }
+        return true;
+//        if(story.getMediaUpdated() == null){
+//            return false;
+//        }
+//        else{
+//            Log.d(TAG, "last updated "+(System.currentTimeMillis() - Double.parseDouble(story.getMediaUpdated())));
+//            if((System.currentTimeMillis() - Double.parseDouble(story.getMediaUpdated())) < 59*60*1000){
+//                return true;
+//            }else{
+//                return false;
+//            }
+//        }
     }
     public void syncToFirebase(String uriType){
         Log.d(TAG, "syncToFirebase called");
@@ -959,25 +1121,19 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
                 //Do something on state change
                     Log.d(TAG, "transfer state: " + state);
                     if(state.equals(TransferState.COMPLETED)){
-                        loadingMedia = true;
-                        loadMedia();
+//                        loadMedia();
                     }
                 }
 
                 @Override
                 public void onProgressChanged(int id, long bytesCurrent, long bytesTotal) {
-                //Do something on progress change.
                     float progress = (float)bytesCurrent/bytesTotal*100;
-                    progressBar.setProgress((int) progress);
-                    if((int)progress == 100){
-                        progressBar.setVisibility(View.GONE);
-                    }
-                    Log.d(TAG, "progress: "+((float)bytesCurrent/bytesTotal*100));
+
                 }
 
                 @Override
                 public void onError(int id, Exception ex) {
-//Do something on error
+
                 }
             });
             return null;
@@ -1000,10 +1156,10 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
         protected void onPostExecute(URL result){
             fileURL = result;
             Log.d(TAG, "Does this even happen: " + result.toString());
-            syncMedia(result);
-
-//            previewCapturedImage();
+//            syncMedia(result);
+//            loadMedia();
         }
+
     }
 
 
@@ -1029,61 +1185,46 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
 
     }
 
-    public void loadMedia(){
+    public void loadMedia(String url){
+        webView = (WebView) findViewById(R.id.view_story_webview);
         webView.setVisibility(View.VISIBLE);
         webView.getSettings().setJavaScriptEnabled(true);
         webView.getSettings().setUseWideViewPort(true);
         webView.getSettings().setLoadWithOverviewMode(true);
-//        webView.setLayerType(WebView.LAYER_TYPE_SOFTWARE, null);
-        Firebase storyRef = new Firebase("https://astory.firebaseio.com").child("stories");
-        final String[] result = new String[1];
-        storyRef.child(storyId).addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(DataSnapshot dataSnapshot) {
-                Log.d(TAG, "within loadMedia loading media is : " + loadingMedia);
-                if (dataSnapshot.getValue(DBStory.class) == null || loadingMedia) {
-                    return;
-                } else {
-                    result[0] = dataSnapshot.getValue(DBStory.class).getMediaUri();
-                    Log.d(TAG, "actual URL: " + result[0]);
-//                if (oldURL == null) {
-                    Log.d(TAG, "oldURL: " + oldURL);
-                    oldURL = result[0];
+        String localMediaType = currentStory.getMediaType();
+        if(currentStory.getMediaType() == null){
+            localMediaType = mediaType;
+        }
 
-                    if (result[0] != null) {
-                        if (dataSnapshot.getValue(DBStory.class).getMediaType().equals("video")) {
-                            ViewGroup.LayoutParams lp = webView.getLayoutParams();
-                            lp.height = (int) pxFromDp(getApplicationContext(), 400);
-                            webView.setLayoutParams(lp);
-                            Log.d(TAG, "loaded URL");
-                            if (oldURL == null || !oldURL.equals(result.toString())) {
-                                oldURL = result.toString();
-                                webView.loadUrl(result[0]);
-                            }
+//        storageRef.child()
+        if (localMediaType.equals("video")) {
+            Log.d(TAG, "loadMedia called on video");
+            ViewGroup.LayoutParams lp = webView.getLayoutParams();
+            lp.height = (int) pxFromDp(getApplicationContext(), 400);
+            webView.setLayoutParams(lp);
+            webView.loadUrl(url);
+//            if(fileURL != null){
+//                Log.d(TAG, "LINK: "+currentStory.getMediaUri());
+//                webView.loadUrl(currentStory.getMediaUri());
+//            }else{
+//                Log.d(TAG, "LINK: "+fileURL);
+//                webView.loadUrl(fileURL.toString());
+//            }
+
+        }
+        if (localMediaType.equals("image")) {
+            Log.d(TAG, "loadMedia called on image");
+            webView.loadUrl(url);
+//            if(fileURL != null){
+//                Log.d(TAG, "LINK: "+currentStory.getMediaUri());
+//                webView.loadUrl(currentStory.getMediaUri());
+//            }else{
+//                Log.d(TAG, "LINK: "+fileURL);
+//                webView.loadUrl(fileURL.toString());
+//            }
+        }
 
 
-                        }
-                        if (dataSnapshot.getValue(DBStory.class).getMediaType().equals("image")) {
-                            if (oldURL == null || !oldURL.equals(result.toString())) {
-                                oldURL = result.toString();
-                                webView.loadUrl(result[0]);
-                            }
-                        }
-                    }
-                    if (mediaUpToDate(dataSnapshot.getValue(DBStory.class))) {
-                        loadingMedia = true;
-                    }
-
-//                }
-
-                }
-            }
-
-            @Override
-            public void onCancelled(FirebaseError firebaseError) {
-
-            }
-        });
 
     }
 
@@ -1092,7 +1233,6 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
         if(oldURL == null || !oldURL.equals(result.toString())) {
             oldURL = result.toString();
         }
-        loadMedia();
 //        setResult(RESULT_OK, new Intent().putExtra(Constants.MEDIA_URL, result));
 //        Log.d(TAG, "Definitely called setResult");
     }

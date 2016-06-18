@@ -43,6 +43,7 @@ public class CommentActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState){
         super.onCreate(savedInstanceState);
+        Firebase.setAndroidContext(this);
         setContentView(R.layout.comments_layout);
         listView = (ListView) findViewById(R.id.list);
         commentsList = new ArrayList<>();

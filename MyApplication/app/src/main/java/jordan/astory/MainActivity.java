@@ -1358,16 +1358,17 @@ public class MainActivity extends FragmentActivity implements
                     recentStoriesButton.setIcon(R.mipmap.ic_restore_black_24dp);
                     recentStoriesButton.setTitle(getString(R.string.all_stories));
                     date = today;
-                    Collections.sort(storyList);
-                    mMap.clear();
-                    for(int i=0; i < storyList.size(); i++){
-                        if(i < Constants.RECENT_STORIES_COUNT){
-                            Log.d(TAG, "sorted Story is active"+storyList.get(i).active);
-                            addStoryToDevice(storyList.get(i));
-                        }else{
-                            storyList.remove(i);
-                        }
-                    }
+//                    Collections.sort(storyList);
+//                    mMap.clear();
+//                    for(int i=0; i < storyList.size(); i++){
+//                        if(i < Constants.RECENT_STORIES_COUNT){
+//                            Log.d(TAG, "sorted Story is active"+storyList.get(i).active);
+//                            addStoryToDevice(storyList.get(i));
+//                        }else{
+//                            storyList.remove(i);
+//                        }
+//                    }
+                    handleDatabase(date);
 
                     Toast.makeText(getApplicationContext(), "Showing recent stories", Toast.LENGTH_SHORT).show();
 
