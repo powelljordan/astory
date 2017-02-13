@@ -6,7 +6,8 @@
     android:layout_height="match_parent">
     <ScrollView
         android:layout_width="fill_parent"
-        android:layout_height="fill_parent">
+        android:layout_height="fill_parent"
+        android:id="@+id/view_story_scrollView">
         <LinearLayout
             android:orientation="vertical"
             android:layout_width="match_parent"
@@ -27,6 +28,7 @@
                         android:layout_height="wrap_content"
                         android:layout_gravity="bottom"
                         android:id="@+id/avatar"
+                        android:background="#0000"
                         android:src="@mipmap/ic_person_black_24dp"/>
                     <TextView
                         android:paddingTop="10dp"
@@ -45,7 +47,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginRight="10dp"
                     android:layout_alignBottom="@+id/user"
-                    android:background="@color/background_holo_light"
+                    android:background="#0000"
                     android:onClick="onDeleteStory"
                     android:layout_alignParentRight="true"
                     android:id="@+id/delete_story_button"
@@ -178,6 +180,10 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:id="@+id/view_story_videoview"/>
+            <ListView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/spotify_results_list"/>
 
         </LinearLayout>
     </ScrollView>
@@ -238,6 +244,16 @@
                 fab:fab_colorPressed="@color/white_pressed"/>
 
             <com.getbase.floatingactionbutton.FloatingActionButton
+                android:id="@+id/addMusic"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                fab:fab_colorNormal="@color/white"
+                fab:fab_title="@string/add_music"
+                fab:fab_icon="@mipmap/spotify_icon"
+                fab:fab_colorPressed="@color/white_pressed"/>
+
+            <com.getbase.floatingactionbutton.FloatingActionButton
                 android:id="@+id/recordVideo"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -258,6 +274,19 @@
                 fab:fab_colorPressed="@color/white_pressed"/>
 
         </com.getbase.floatingactionbutton.FloatingActionsMenu>
+        <com.getbase.floatingactionbutton.FloatingActionButton
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/play_pause"
+            android:visibility="invisible"
+            android:layout_marginBottom="16dp"
+            android:layout_marginRight="16dp"
+            android:layout_marginEnd="16dp"
+            fab:fab_icon="@mipmap/ic_play_arrow_black_24dp"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentRight="true"
+            android:layout_alignParentEnd="true"
+            />
 
 
 

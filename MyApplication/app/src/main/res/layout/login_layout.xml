@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical" android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@drawable/city_small">
     <com.google.android.gms.common.SignInButton
         android:id="@+id/login_with_google"
         android:text="@string/login_with_google"
@@ -16,6 +17,7 @@
             android:layout_height="wrap_content"
             android:textAppearance="?android:attr/textAppearanceLarge"
             android:text="aStory"
+            android:textColor="@color/white"
             android:layout_gravity="center_horizontal"
             android:textSize="35dp"
             android:id="@+id/textView" />

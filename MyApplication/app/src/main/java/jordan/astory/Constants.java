@@ -87,11 +87,6 @@ public final class Constants {
     final static String MY_ACTION = "MY_ACTION";
 
 
-//    Cloudinary API info
-    public final static String CLOUDINARY_API_KEY = "349733414781831";
-    public final static String CLOUDINARY_API_SECRET = "bLX2fK3e4TC5z0ikXmPSdi_TNzg";
-    public final static String CLOUDINARY_ENVIRONMENT_VARIABLE = "cloudinary://349733414781831:bLX2fK3e4TC5z0ikXmPSdi_TNzg@dsck8wsag";
-
 //     Stuff
     public final static String IDENTITY_POOL_ID = "us-east-1:3e0f22c1-492a-42bc-84c8-09aa8ee7751e";
 
@@ -131,4 +126,7 @@ public final class Constants {
     public final static String[] STORAGE_PERMS = {
             "android.permission.WRITE_EXTERNAL_STORAGE",
             "android.permission.READ_EXTERNAL_STORAGE"};
+
+    public final static String SPOTIFY_CLIENT_ID = "4987a93c80dc43e783835661a007ba68";
+    public static final int SPOTIFY_REQUEST_CODE = 1337;
 }

@@ -26,6 +26,12 @@ android {
     }
 }
 
+repositories{
+    mavenCentral()
+    flatDir{
+        dirs 'libs'
+    }
+}
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     testCompile 'junit:junit:4.12'
@@ -55,6 +61,10 @@ dependencies {
 //    compile 'org.twitter4j:twitter4j-core:4.0.2'
 
     compile 'com.getbase:floatingactionbutton:1.10.1'
+
+    compile 'com.spotify.sdk:spotify-player-24-noconnect-2.20b@aar'
+    compile 'com.spotify.sdk:spotify-android-auth-1.0.0@aar'
+    compile 'com.squareup.okhttp3:okhttp:3.6.0'
 }
 
 apply plugin: 'com.google.gms.google-services'

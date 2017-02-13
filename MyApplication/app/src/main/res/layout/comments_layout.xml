@@ -34,7 +34,7 @@
             android:layout_height="wrap_content"
             android:id="@+id/send_button"
             android:layout_gravity="bottom"
-            android:background="@color/background_holo_light"
+            android:background="#0000"
             android:src="@mipmap/ic_send_black_48dp"/>
     </LinearLayout>
 

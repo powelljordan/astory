@@ -4,6 +4,8 @@ import com.google.android.gms.location.Geofence;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 
+import java.util.ArrayList;
+
 /**
  * Created by Jordan on 1/3/2016.
  */

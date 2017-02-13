@@ -1,7 +1,10 @@
 package jordan.astory;
 
+import android.animation.ObjectAnimator;
+import android.app.SearchManager;
 import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -21,21 +24,33 @@ import android.os.Message;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.v4.app.DialogFragment;
+import android.support.v4.view.MenuItemCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.SearchView;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.WebView;
+import android.widget.AdapterView;
 import android.widget.Button;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ListAdapter;
+import android.widget.ListView;
 import android.widget.MediaController;
 import android.widget.ProgressBar;
+import android.widget.RemoteViewsService;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.ToggleButton;
 import android.widget.VideoView;
 
 import com.amazonaws.auth.CognitoCachingCredentialsProvider;
@@ -67,7 +82,20 @@ import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.OnProgressListener;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
+import com.spotify.sdk.android.authentication.AuthenticationClient;
+import com.spotify.sdk.android.authentication.AuthenticationRequest;
+import com.spotify.sdk.android.authentication.AuthenticationResponse;
+import com.spotify.sdk.android.player.Config;
+import com.spotify.sdk.android.player.ConnectionStateCallback;
+import com.spotify.sdk.android.player.Error;
+import com.spotify.sdk.android.player.Player;
+import com.spotify.sdk.android.player.PlayerEvent;
+import com.spotify.sdk.android.player.Spotify;
+import com.spotify.sdk.android.player.SpotifyPlayer;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.w3c.dom.Text;
 
 import java.io.File;
@@ -79,6 +107,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -86,11 +115,17 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+
 
 /**
  * Created by Jordan on 12/30/2015.
  */
-public class ViewStoryActivity extends AppCompatActivity implements SelectEmoticonFragment.SelectEmoticonFragmentListener, ShowEmoticonsFragment.ShowEmoticonsFragmentListener{
+public class ViewStoryActivity extends AppCompatActivity implements SelectEmoticonFragment.SelectEmoticonFragmentListener, ShowEmoticonsFragment.ShowEmoticonsFragmentListener, SpotifyPlayer.NotificationCallback, ConnectionStateCallback {
     //TODO Add button for handling adding pictures or videos to a story
     //TODO Think of a way to make these viewable. Maybe visit the old wireframes
     // Activity request codes
@@ -170,6 +205,11 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
     public FloatingActionButton videoButton;
     public FloatingActionButton pictureButton;
     public FloatingActionButton saveButton;
+    public FloatingActionButton musicButton;
+
+    public FloatingActionButton play_pause;
+    public boolean isPlaying;
+
 
     private boolean adding;
     private boolean shouldLoadMedia = true;
@@ -183,6 +223,28 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
     private FirebaseStorage storage;
     private StorageReference storageRef;
 
+
+    //Spotify related stuff
+    private static final String CLIENT_ID = Constants.SPOTIFY_CLIENT_ID;
+    private static final String REDIRECT_URI = "astory://callback";
+    private Player mPlayer;
+    private final OkHttpClient mOkHttpClient = new OkHttpClient();
+    private String mAccessToken;
+    private String mAccessCode;
+    private Call mCall;
+    private String current_track = "spotify:track:0jWgAnTrNZmOGmqgvHhZEm";
+    ArrayList<SpotifyResult> search_results;
+
+    SearchView searchView;
+    SearchResultsAdapter searchResultsAdapter;
+
+    ListView spotify_listView;
+    ScrollView scrollView;
+
+    Menu search_menu;
+
+
+
     @Override
     public void onCreate(Bundle savedInstanceState){
         super.onCreate(savedInstanceState);
@@ -191,6 +253,24 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
         Intent intent = getIntent();
         storage = FirebaseStorage.getInstance();
         storageRef = storage.getReferenceFromUrl("gs://project-2330988829986143534.appspot.com");
+
+        scrollView = (ScrollView) findViewById(R.id.view_story_scrollView);
+        handleIntent(getIntent());
+
+        Log.d(TAG, "[CLIENT_ID]: "+CLIENT_ID);
+        AuthenticationRequest.Builder builder = new AuthenticationRequest.Builder(CLIENT_ID,
+                AuthenticationResponse.Type.TOKEN,
+                REDIRECT_URI);
+
+        builder.setScopes(new String[]{"user-read-private", "streaming"});
+        AuthenticationRequest request = builder.build();
+        AuthenticationClient.openLoginActivity(this, Constants.SPOTIFY_REQUEST_CODE, request);
+
+
+        search_results = new ArrayList<>();
+        searchResultsAdapter = new SearchResultsAdapter(getBaseContext(), R.layout.spotify_list_item, search_results);
+        spotify_listView = (ListView) findViewById(R.id.spotify_results_list);
+        spotify_listView.setAdapter(searchResultsAdapter);
 
         Firebase credentialsRef = new Firebase("https://astory.firebaseio.com");
         if(credentialsRef.getAuth() == null) {
@@ -228,9 +308,14 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
         }
         SimpleDateFormat s2 = new SimpleDateFormat("MM-dd-yyyy", Locale.US);
         today = s2.format(d);
-
+        try{
         handleDatabase(dateKey);
+
+
         handleCaptureButtons(intent);
+        }catch(NullPointerException e){
+            Log.d(TAG, e.toString());
+        }
         Log.d(TAG, "author: " + author);
         webView = (WebView) findViewById(R.id.view_story_webview);
         //Delete move button
@@ -285,10 +370,8 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
 
         SharedPreferences.Editor editor = mSharedPreferences.edit();
         seenStories = new HashSet<>(mSharedPreferences.getStringSet(Constants.SEEN_STORIES, new HashSet<String>()));
-//        mSharedPreferences.getStringSet(Constants.SEEN_STORIES, seenStories);
         seenStories.add(storyId);
         Log.d(TAG, "seenStories: " + seenStories);
-//        editor.putStringSet(Constants.SEEN_STORIES, seenStories);
         editor.putString(Constants.CURRENT_STORY, storyId);
         editor.putStringSet(Constants.SEEN_STORIES, seenStories);
         editor.apply();
@@ -298,8 +381,12 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
         pictureButton = (FloatingActionButton)findViewById(R.id.takePicture);
         videoButton = (FloatingActionButton)findViewById(R.id.recordVideo);
         saveButton = (FloatingActionButton) findViewById(R.id.save);
+        musicButton = (FloatingActionButton) findViewById(R.id.addMusic);
+
+        play_pause = (FloatingActionButton) findViewById(R.id.play_pause);
+        isPlaying = false;
+
         upvotedStories = new HashSet<>(mSharedPreferences.getStringSet(Constants.UPVOTED_STORIES, new HashSet<String>()));
-//        mSharedPreferences.getStringSet(Constants.UPVOTED_STORIES, upvotedStories);
         Log.d(TAG, "onCreate upvotedStories: " + upvotedStories);
         if(upvotedStories.contains(storyId)){
             upvoteButton.setColorNormalResId(R.color.deep_sky_blue);
@@ -309,6 +396,7 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
         if(adding){
             saveButton.setVisibility(View.VISIBLE);
             pictureButton.setVisibility(View.VISIBLE);
+            musicButton.setVisibility(View.VISIBLE);
             videoButton.setVisibility(View.VISIBLE);
             commentButton.setVisibility(View.GONE);
             nameText.setVisibility(View.GONE);
@@ -316,6 +404,9 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
             nameEditText.setVisibility(View.VISIBLE);
             contentEditText.setVisibility(View.VISIBLE);
         }
+
+
+
 
         saveButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -331,6 +422,7 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
                 contentText.setText(contentEditText.getText());
                 saveButton.setVisibility(View.INVISIBLE);
                 pictureButton.setVisibility(View.GONE);
+                musicButton.setVisibility(View.GONE);
                 videoButton.setVisibility(View.GONE);
                 commentButton.setVisibility(View.VISIBLE);
                 nameText.setVisibility(View.VISIBLE);
@@ -524,10 +616,105 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
             finish();
         }
 
+        musicButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                ObjectAnimator.ofInt(scrollView, "scrollY",  webView.getBottom()).setDuration(1500).start();
+                MenuItemCompat.expandActionView(search_menu.findItem(R.id.search));
+
+
+            }
+        });
+
+        play_pause.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (!isPlaying){
+                    if (mPlayer.getPlaybackState().positionMs > 0 && mPlayer.getMetadata().currentTrack.toString() == current_track){
+                        mPlayer.resume(null);
+                    }else {
+                        Log.d("QUERY", "current_track: " + current_track);
+                        mPlayer.playUri(null, current_track,0 ,0);
+                    }
+                    play_pause.setIcon(R.mipmap.ic_pause_black_24dp);
+                    isPlaying = true;
+
+                }else{
+                    mPlayer.pause(null);
+                    isPlaying = false;
+                    play_pause.setIcon(R.mipmap.ic_play_arrow_black_24dp);
+                }
+            }
+        });
 
 
 
 
+
+        spotify_listView.setOnItemClickListener(new AdapterView.OnItemClickListener(){
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                Log.d("ViewStoryActivity","itemClick listener is working");
+                final SpotifyResult itemValue = (SpotifyResult) spotify_listView.getItemAtPosition(position);
+//                mPlayer.pause(null);
+                current_track = itemValue.getUri();
+                if (!isPlaying){
+                    if (mPlayer.getPlaybackState().positionMs > 0 && mPlayer.getMetadata().currentTrack.toString() == current_track){
+                        mPlayer.resume(null);
+                    }else {
+                        Log.d("QUERY", "current_track: " + current_track);
+                        mPlayer.playUri(null, current_track,0 ,0);
+                    }
+                    play_pause.setIcon(R.mipmap.ic_pause_black_24dp);
+                    isPlaying = true;
+
+                }else{
+                    mPlayer.pause(null);
+                    play_pause.setIcon(R.mipmap.ic_play_arrow_black_24dp);
+                    isPlaying = false;
+                }
+            }
+        });
+
+
+
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.options_menu, menu);
+        search_menu = menu;
+
+        //Associate searchable with the SearchView
+        SearchManager searchManager = (SearchManager) getSystemService(Context.SEARCH_SERVICE);
+        searchView = (SearchView) menu.findItem(R.id.search).getActionView();
+        searchView.setSearchableInfo(searchManager.getSearchableInfo(getComponentName()));
+        Log.d("QUERY", "Info: "+searchManager.getSearchableInfo(getComponentName()));
+
+
+        MenuItemCompat.setOnActionExpandListener(menu.findItem(R.id.search), new MenuItemCompat.OnActionExpandListener() {
+            @Override
+            public boolean onMenuItemActionCollapse(MenuItem item) {
+                play_pause.setVisibility(View.INVISIBLE);
+                mainMenu.setVisibility(View.VISIBLE);
+                spotify_listView.setVisibility(View.INVISIBLE);
+                return true;  // Return true to collapse action view
+            }
+
+            @Override
+            public boolean onMenuItemActionExpand(MenuItem item) {
+                // Do something when expanded
+                // Only want to show the play button if there are search results
+                play_pause.setVisibility(View.VISIBLE);
+                mainMenu.setVisibility(View.INVISIBLE);
+                spotify_listView.setVisibility(View.VISIBLE);
+                return true;  // Return true to expand action view
+            }
+        });
+
+
+        return true;
     }
 
     @Override
@@ -543,6 +730,7 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
         }
 
     }
+
 
 
 
@@ -721,7 +909,7 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
         Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
 
         fileUri = getOutputMediaFileUri(MEDIA_TYPE_IMAGE);
-
+        Log.d(TAG, "File URI: " + fileUri);
         intent.putExtra(MediaStore.EXTRA_OUTPUT, fileUri);
 
         // start the image capture Intent
@@ -776,6 +964,31 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
         Bitmap bitmap = null;
         FirebaseDatabase database = FirebaseDatabase.getInstance();
         final DatabaseReference mDatabase = database.getReference();
+        Log.d(TAG, "[REQUEST CODE]: "+requestCode);
+        if (requestCode == Constants.SPOTIFY_REQUEST_CODE) {
+            AuthenticationResponse response = AuthenticationClient.getResponse(resultCode, data);
+            Log.d(TAG, "[SPOTIFY] data: "+data);
+            mAccessToken = response.getAccessToken();
+            Log.d(TAG, "[SPOTIFY RESPONSE]: "+response.getError());
+            if (response.getType() == AuthenticationResponse.Type.TOKEN) {
+                Log.d(TAG, "Response type is a token");
+                Config playerConfig = new Config(this, response.getAccessToken(), CLIENT_ID);
+                Spotify.getPlayer(playerConfig, this, new SpotifyPlayer.InitializationObserver() {
+                    @Override
+                    public void onInitialized(SpotifyPlayer spotifyPlayer) {
+                        Log.d(TAG, "[INITIALIZED]"+spotifyPlayer);
+                        mPlayer = spotifyPlayer;
+                        mPlayer.addConnectionStateCallback(ViewStoryActivity.this);
+                        mPlayer.addNotificationCallback(ViewStoryActivity.this);
+                    }
+
+                    @Override
+                    public void onError(Throwable throwable) {
+                        Log.e("ViewStoryActivity", "Could not initialize player: " + throwable.getMessage());
+                    }
+                });
+            }
+        }
 
 
         if(requestCode == Constants.PROFILE_REQUEST_CODE && resultCode == RESULT_OK){
@@ -996,6 +1209,8 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
                         .show();
             }
         }
+
+
 //        if(!(resultCode == Constants.PROFILE_REQUEST_CODE && adding)) {
 //            Toast.makeText(getApplicationContext(), "Your story has been added", Toast.LENGTH_SHORT).show();
 //        }
@@ -1087,6 +1302,51 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
     @Override
     public void onFinishedShowEmoticons(String name) {
 
+    }
+
+    @Override
+    public void onLoggedIn() {
+        Log.d("ViewStoryActivity", "User logged in");
+    }
+
+    @Override
+    public void onLoggedOut() {
+        Log.d("ViewStoryActivity", "User logged out");
+    }
+
+    @Override
+    public void onLoginFailed(Error error) {
+        Log.d("ViewStoryActivity", "Login failed");
+    }
+
+    @Override
+    public void onTemporaryError() {
+        Log.d("ViewStoryActivity", "Temporary error occured.");
+    }
+
+    @Override
+    public void onConnectionMessage(String message) {
+        Log.d("ViewStoryActivity", "Received Spotify connection message: " + message);
+    }
+
+    @Override
+    public void onPlaybackEvent(PlayerEvent playerEvent) {
+        Log.d("ViewStoryActivity", "Playback event received: " + playerEvent.name());
+        switch (playerEvent) {
+            // Handle event type as necessary
+            default:
+                break;
+        }
+    }
+
+    @Override
+    public void onPlaybackError(Error error) {
+        Log.d("ViewStoryActivity", "Playback error received: " + error.name());
+        switch (error) {
+            // Handle error type as necessary
+            default:
+                break;
+        }
     }
 
 
@@ -1382,6 +1642,105 @@ public class ViewStoryActivity extends AppCompatActivity implements SelectEmotic
                     Uri.parse("http://www.youtube.com/watch?v=" + id));
             startActivity(intent);
         }
+    }
+
+
+    @Override
+    protected void onNewIntent(Intent intent){
+        handleIntent(intent);
+    }
+
+    private void handleIntent(Intent intent){
+        if (Intent.ACTION_SEARCH.equals(intent.getAction())){
+            String query = intent.getStringExtra(SearchManager.QUERY);
+            Log.d("QUERY [handleIntent]", query);
+            search(query);
+            //use the query to search
+        }
+    }
+
+    private void cancelCall() {
+        if (mCall != null) {
+            mCall.cancel();
+        }
+    }
+
+    public void search(String query) {
+        final Request request = new Request.Builder()
+                .url("https://api.spotify.com/v1/me")
+                .addHeader("Authorization", "Bearer " + mAccessToken)
+                .build();
+        final Request search_request = new Request.Builder().url("https://api.spotify.com/v1/search?q="+query+"&type=track&limit=10")
+                .build();
+        cancelCall();
+
+        mCall = mOkHttpClient.newCall(search_request);
+
+        mCall.enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                Log.d("HTTP INFO", "Failed to fetch data: " + e);
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                try {
+                    final JSONObject jsonObject = new JSONObject(response.body().string());
+                    Log.d("QUERY RAW [search]", jsonObject.toString());
+                    final ArrayList<SpotifyResult> spotify_results = new ArrayList<SpotifyResult>();
+                    JSONArray jsonArray = jsonObject.getJSONObject("tracks").getJSONArray("items");
+                    for (int i=0; i<jsonArray.length(); i++){
+                        SpotifyResult spotify_result = new SpotifyResult(jsonArray.getJSONObject(i));
+                        spotify_results.add(spotify_result);
+                    }
+
+                    ViewStoryActivity.this.runOnUiThread(new Runnable(){
+                        @Override
+                        public void run(){
+                            updateSearchResults(spotify_results);
+                        }
+                    });
+
+                    Log.d("HTTP INFO", jsonObject.toString(3));
+
+                } catch (JSONException e) {
+                    Log.d("HTTP INFO", "Failed to parse data: " + e);
+                }
+            }
+        });
+    }
+
+    private void updateSearchResults(ArrayList<SpotifyResult> results){
+        current_track = results.get(0).getUri();
+        searchResultsAdapter.updateList(results);
+        setListViewHeightBasedOnChildren(spotify_listView);
+        ObjectAnimator.ofInt(scrollView, "scrollY",  webView.getBottom()).setDuration(1500).start();
+
+        Log.d("QUERY [updateSearch]", ""+results.size());
+        Log.d("QUERY [updateSearch]", results.get(0).getArtist());
+        Log.d("QUERY [updateSearch]", results.get(0).getDuration());
+        Log.d("QUERY [updateSearch]", current_track);
+    }
+
+    public static void setListViewHeightBasedOnChildren(ListView listView) {
+        ListAdapter listAdapter = listView.getAdapter();
+        if (listAdapter == null) {
+            // pre-condition
+            return;
+        }
+
+        int totalHeight = 0;
+        Log.d("ViewStoryActivity", "list adapter count : "+listAdapter.getCount());
+        for (int i = 0; i < listAdapter.getCount(); i++) {
+            View listItem = listAdapter.getView(i, null, listView);
+            listItem.measure(0, 0);
+            totalHeight += listItem.getMeasuredHeight();
+        }
+
+        ViewGroup.LayoutParams params = listView.getLayoutParams();
+        params.height = (int)((double)(totalHeight + (listView.getDividerHeight() * (listAdapter.getCount() - 1)))*1.25);
+        listView.setLayoutParams(params);
+        listView.requestLayout();
     }
 
 

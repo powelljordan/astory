@@ -52,6 +52,7 @@
     <string name="comments">Comments</string>
     <string name="upvote">Upvote</string>
     <string name="take_picture">Add Picture</string>
+    <string name="add_music">Add Music</string>
     <string name="record_video">Add Video</string>
     <string name="add_media">Multimedia</string>
     <string name="vote_count"></string>
@@ -62,6 +63,10 @@
     <string name="surprised">Surprise</string>
     <string name="save">Save Story</string>
     <string name="time_travel">360 Video</string>
+    <string name="search_hint">Search Spotify . . .</string>
+    <string name="search_title">Song Search</string>
+    <string name="track_title">Title</string>
+    <string name="track_artist">Artist</string>
 
     <!--Comment Activity Strings-->
     <string name="send_button">Send</string>
@@ -72,9 +77,9 @@
     <string name="register_button">Register</string>
 
     <!--Registration Page Strings-->
-    <string name="email_hint">example@mit.edu</string>
-    <string name="username_hint">kerberos</string>
-    <string name="password_hint">Password</string>
+    <string name="email_hint">storyteller101@mit.edu</string>
+    <string name="username_hint">storyteller101</string>
+    <string name="password_hint"></string>
     <string name="registration_button">Register</string>
 
     <!--Map Page Strings-->
